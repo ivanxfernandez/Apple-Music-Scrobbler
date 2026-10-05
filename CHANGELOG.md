@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.3.0
+
+- **Mac version**: a menu bar app for the Music app on macOS 13 or newer (Apple Silicon and Intel), with the same features as on Windows: now playing, scrobbling with an offline queue, love, pause, title cleanup, Discord status, update notifications and start at login. It asks once for access to Music so songs played on repeat are scrobbled each time. Download `AppleMusicScrobbler-macOS.zip` from the release; see the README for the first launch.
+- Windows: no changes in this version.
+
 ## 1.2.0
 
 - **Discord status**: shows *Listening to Apple Music* on your Discord profile with the song (linked to Apple Music), artist, album art, a progress bar, and *Listen on Apple Music* / *Last.fm profile* buttons. It's hidden while paused, reconnects automatically when Discord starts, and can be turned off in *Options*.

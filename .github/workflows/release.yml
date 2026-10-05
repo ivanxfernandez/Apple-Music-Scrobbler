@@ -2,7 +2,10 @@
 #   git tag v1.2.0 && git push origin v1.2.0
 #
 # Repository secrets (Settings > Secrets and variables > Actions), optional but recommended:
-#   LASTFM_API_KEY / LASTFM_API_SECRET  baked into the exe so users don't need their own API key
+#   LASTFM_API_KEY / LASTFM_API_SECRET  baked into the exe and the Mac app so users don't need their own API key
+#
+# One release holds both platforms: the Windows job creates it, the macOS job builds in parallel
+# and attach-macos adds the Mac zip once both are done.
 name: Release
 
 on:
@@ -14,6 +17,7 @@ permissions:
 
 jobs:
   release:
+    name: Windows + create release
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
@@ -52,5 +56,50 @@ jobs:
           $prerelease = if ('${{ github.ref_name }}' -like '*-*') { '--prerelease' } else { $null }
           gh release create '${{ github.ref_name }}' $exe `
             --title 'Apple Music Scrobbler ${{ github.ref_name }}' `
-            --notes "**Download ``AppleMusicScrobbler.exe`` below**, put it somewhere permanent and run it.`n`nSHA-256: ``$hash``" `
+            --notes "**Windows:** download ``AppleMusicScrobbler.exe`` below, put it somewhere permanent and run it.`n`nSHA-256: ``$hash``" `
             --generate-notes $prerelease
+
+  macos:
+    runs-on: macos-latest
+    defaults:
+      run:
+        working-directory: macos
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Test
+        run: swift test
+
+      - name: Build app
+        env:
+          LASTFM_API_KEY: ${{ secrets.LASTFM_API_KEY }}
+          LASTFM_API_SECRET: ${{ secrets.LASTFM_API_SECRET }}
+          GITHUB_REPO: ${{ github.repository }}
+          UNIVERSAL: '1'
+        run: ./build-app.sh '${{ github.ref_name }}'
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: AppleMusicScrobbler-macOS
+          path: macos/build/AppleMusicScrobbler-macOS.zip
+
+  attach-macos:
+    name: Add the Mac app to the release
+    needs: [release, macos]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: AppleMusicScrobbler-macOS
+
+      - name: Upload
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          gh release upload "$TAG" AppleMusicScrobbler-macOS.zip --clobber
+          hash=$(sha256sum AppleMusicScrobbler-macOS.zip | cut -d' ' -f1)
+          body=$(gh release view "$TAG" --json body -q .body)
+          printf '%s\n\n**Mac** (macOS 13 or newer): download `AppleMusicScrobbler-macOS.zip` below, unzip it and move the app to Applications before opening it. The app isn'"'"'t notarized by Apple yet; see the README for how to open it the first time.\n\nSHA-256: `%s`\n' "$body" "$hash" > notes.md
+          gh release edit "$TAG" --notes-file notes.md
