@@ -1,6 +1,6 @@
 import Foundation
 
-enum Http {
+public enum Http {
     /// One shared session for the whole app (Last.fm, GitHub, iTunes Search).
     static let session: URLSession = {
         let config = URLSessionConfiguration.ephemeral
@@ -8,6 +8,11 @@ enum Http {
         config.httpAdditionalHeaders = ["User-Agent": "AppleMusicScrobbler/\(AppInfo.version) (macOS)"]
         return URLSession(configuration: config)
     }()
+
+    /// Downloads to a temporary file (for app updates).
+    public static func download(_ url: URL) async throws -> (URL, URLResponse) {
+        try await session.download(from: url)
+    }
 
     /// Percent-encodes for a query string or form body (RFC 3986 unreserved characters stay as they are).
     static func escape(_ s: String) -> String {

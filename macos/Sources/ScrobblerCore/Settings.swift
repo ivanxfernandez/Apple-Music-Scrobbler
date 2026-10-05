@@ -52,6 +52,11 @@ public final class Settings {
         get { defaults.string(forKey: "UpdateNotifiedFor") ?? "" }
         set { defaults.set(newValue, forKey: "UpdateNotifiedFor") }
     }
+    /// Version that ran last time, to say "Updated to …" once after an update.
+    public var lastRunVersion: String {
+        get { defaults.string(forKey: "LastRunVersion") ?? "" }
+        set { defaults.set(newValue, forKey: "LastRunVersion") }
+    }
     /// "Artist - Title" of the latest scrobble, shown in the menu.
     public var lastScrobbled: String {
         get { defaults.string(forKey: "LastScrobbled") ?? "" }

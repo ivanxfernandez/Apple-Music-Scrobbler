@@ -4,6 +4,12 @@ import ScrobblerCore
 /// --dry-run: read Music and log what would be scrobbled, without contacting Last.fm.
 let dryRun = CommandLine.arguments.contains("--dry-run")
 
+/// --pretend-version X.Y.Z: check for updates as if this were version X.Y.Z, to test the updater
+/// against the latest release (it offers to "update" to it). Doesn't change anything else.
+if let i = CommandLine.arguments.firstIndex(of: "--pretend-version"), i + 1 < CommandLine.arguments.count {
+    UpdateChecker.pretendVersion = CommandLine.arguments[i + 1]
+}
+
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
     private let settings = Settings()

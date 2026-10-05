@@ -30,6 +30,8 @@ namespace AppleMusicScrobbler
         bool _authWarningShown;
         string _lastError;
         string _balloonUrl;
+        bool _balloonInstallsUpdate;
+        bool _installing;
         ReleaseInfo _update;
 
         public TrayApp(Settings settings, bool justConnected)
@@ -49,7 +51,7 @@ namespace AppleMusicScrobbler
             _recentItem = new ToolStripMenuItem("Recent scrobbles");
             _recentItem.DropDownItems.Add("Nothing scrobbled yet"); // placeholder so the arrow shows; filled when opened
             _recentItem.DropDownOpening += (s, e) => BuildRecentMenu();
-            _updateItem = new ToolStripMenuItem("Update available", null, (s, e) => AppInfo.OpenUrl(_update?.Url)) { Visible = false };
+            _updateItem = new ToolStripMenuItem("Update available", null, (s, e) => OfferUpdate()) { Visible = false };
             _updateItem.Font = new Font(_updateItem.Font, FontStyle.Bold);
             _loveItem = new ToolStripMenuItem("♥ Love this song on Last.fm", null, async (s, e) => await LoveCurrentAsync());
             _pauseItem = new ToolStripMenuItem("Pause scrobbling", null, (s, e) => TogglePause()) { Checked = settings.Paused };
@@ -131,15 +133,19 @@ namespace AppleMusicScrobbler
             {
                 if (e.Button == MouseButtons.Left) OpenMenu();
             };
-            _tray.BalloonTipClicked += (s, e) => { if (_balloonUrl != null) AppInfo.OpenUrl(_balloonUrl); };
-            _tray.BalloonTipClosed += (s, e) => _balloonUrl = null;
+            _tray.BalloonTipClicked += (s, e) =>
+            {
+                if (_balloonInstallsUpdate) OfferUpdate();
+                else if (_balloonUrl != null) AppInfo.OpenUrl(_balloonUrl);
+            };
+            _tray.BalloonTipClosed += (s, e) => { _balloonUrl = null; _balloonInstallsUpdate = false; };
 
             _timer = new Timer { Interval = 1000 };
             _timer.Tick += OnTick;
             _timer.Start();
 
-            // First update check a minute after starting, then daily.
-            _updateTimer = new Timer { Interval = 60 * 1000 };
+            // First update check a minute after starting (right away when testing the updater), then daily.
+            _updateTimer = new Timer { Interval = UpdateChecker.PretendVersion == null ? 60 * 1000 : 3000 };
             _updateTimer.Tick += async (s, e) =>
             {
                 _updateTimer.Interval = UpdateCheckIntervalMs;
@@ -157,6 +163,18 @@ namespace AppleMusicScrobbler
             Log.Write(Program.DryRun
                 ? $"Started {AppInfo.Version} (dry run: nothing is sent to Last.fm)"
                 : $"Started {AppInfo.Version}, scrobbling as {_settings.Username}");
+
+            if (_settings.LastRunVersion.Length > 0 && _settings.LastRunVersion != AppInfo.Version)
+            {
+                Log.Write($"Updated from {_settings.LastRunVersion} to {AppInfo.Version}");
+                ShowBalloon($"Updated to {AppInfo.Version}", $"{AppInfo.Name} is up to date. Click to see what's new.", ToolTipIcon.Info,
+                    AppInfo.RepoUrl.Length > 0 ? $"{AppInfo.RepoUrl}/releases/tag/v{AppInfo.Version}" : null);
+            }
+            if (_settings.LastRunVersion != AppInfo.Version)
+            {
+                _settings.LastRunVersion = AppInfo.Version;
+                SaveSettings();
+            }
 
             if (justConnected)
                 ShowBalloon("Connected to Last.fm",
@@ -251,9 +269,10 @@ namespace AppleMusicScrobbler
         public void OpenMenu() =>
             typeof(NotifyIcon).GetMethod("ShowContextMenu", BindingFlags.Instance | BindingFlags.NonPublic)?.Invoke(_tray, null);
 
-        void ShowBalloon(string title, string text, ToolTipIcon icon, string clickUrl = null)
+        void ShowBalloon(string title, string text, ToolTipIcon icon, string clickUrl = null, bool installsUpdate = false)
         {
             _balloonUrl = clickUrl;
+            _balloonInstallsUpdate = installsUpdate;
             _tray.ShowBalloonTip(10000, title, text, icon);
         }
 
@@ -294,7 +313,7 @@ namespace AppleMusicScrobbler
                     Log.Write("Update available: " + release.Tag);
                     _settings.UpdateNotifiedFor = release.Tag;
                     SaveSettings();
-                    ShowBalloon("Update available", $"{AppInfo.Name} {release.Tag} is out. Click to download it.", ToolTipIcon.Info, release.Url);
+                    ShowBalloon("Update available", $"{AppInfo.Name} {release.Tag} is out. Click to install it.", ToolTipIcon.Info, release.Url, installsUpdate: true);
                 }
             }
             catch (Exception ex)
@@ -308,6 +327,45 @@ namespace AppleMusicScrobbler
         {
             Log.Write("Opened the problem report form");
             AppInfo.OpenUrl(IssueReport.Url(AppInfo.GitHubRepo, AppInfo.Version, IssueReport.SystemDescription(), IssueReport.ReadLog()));
+        }
+
+        /// <summary>Asks before installing; No opens the release page instead.</summary>
+        async void OfferUpdate()
+        {
+            var release = _update;
+            if (release == null || _installing) return;
+            string reason = string.IsNullOrEmpty(release.DownloadUrl) ? "this release has no checked download for Windows" : Updater.CannotInstallReason();
+            if (reason != null)
+            {
+                if (MessageBox.Show($"{AppInfo.Name} {release.Tag} is out, but the app can't update itself because {reason}.\n\nOpen the release page to download it?",
+                        AppInfo.Name, MessageBoxButtons.YesNo, MessageBoxIcon.Information) == DialogResult.Yes)
+                    AppInfo.OpenUrl(release.Url);
+                return;
+            }
+
+            var answer = MessageBox.Show(
+                $"Update to {AppInfo.Name} {release.Tag}?\n\nThe app downloads the new version, checks it, and restarts. Your settings and Last.fm login are kept.\n\n" +
+                "Yes: install and restart\nNo: open the release notes instead",
+                AppInfo.Name, MessageBoxButtons.YesNoCancel, MessageBoxIcon.Question);
+            if (answer == DialogResult.No) AppInfo.OpenUrl(release.Url);
+            if (answer != DialogResult.Yes) return;
+
+            _installing = true;
+            _updateItem.Text = $"Installing {release.Tag}...";
+            _updateItem.Enabled = false;
+            try
+            {
+                await Updater.InstallAsync(release);
+                ExitThread();
+            }
+            catch (Exception ex)
+            {
+                _installing = false;
+                _updateItem.Text = $"⬆ Update available: {release.Tag}";
+                _updateItem.Enabled = true;
+                Log.Write($"Update to {release.Tag} failed: {ex.Message}");
+                ShowBalloon("Couldn't install the update", ex.Message + ". Click to download it from the release page.", ToolTipIcon.Warning, release.Url);
+            }
         }
 
         void ShowAbout()

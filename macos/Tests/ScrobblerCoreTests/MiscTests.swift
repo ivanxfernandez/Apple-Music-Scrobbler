@@ -70,3 +70,33 @@ import Testing
         #expect(Http.escape("a-b_c.d~e") == "a-b_c.d~e")
     }
 }
+
+@Suite struct ReleaseAssetTests {
+    static let hash = "efada22d5208773242970c1cf89a1cef708115a6dd118b7184f825ad13ddd993"
+
+    @Test func readsGitHubDigests() {
+        #expect(UpdateChecker.sha256(fromDigest: "sha256:" + Self.hash.uppercased()) == Self.hash)
+        #expect(UpdateChecker.sha256(fromDigest: "sha256:abc") == nil)
+        #expect(UpdateChecker.sha256(fromDigest: "md5:" + Self.hash) == nil)
+        #expect(UpdateChecker.sha256(fromDigest: nil) == nil)
+    }
+
+    @Test func picksTheMacZipWithItsDigest() throws {
+        let json = """
+        {"tag_name":"v1.3.0","html_url":"https://github.com/o/r/releases/tag/v1.3.0","assets":[
+          {"name":"AppleMusicScrobbler.exe","browser_download_url":"https://github.com/o/r/releases/download/v1.3.0/AppleMusicScrobbler.exe","digest":"sha256:\(String(repeating: "a", count: 64))"},
+          {"name":"AppleMusicScrobbler-macOS.zip","browser_download_url":"https://github.com/o/r/releases/download/v1.3.0/AppleMusicScrobbler-macOS.zip","digest":"sha256:\(Self.hash)"}]}
+        """
+        let release = try JSONDecoder().decode(UpdateChecker.GitHubRelease.self, from: Data(json.utf8))
+        let asset = try #require(UpdateChecker.asset(named: UpdateChecker.macAssetName, in: release.assets))
+        #expect(asset.url.lastPathComponent == "AppleMusicScrobbler-macOS.zip")
+        #expect(asset.sha256 == Self.hash)
+    }
+
+    @Test func ignoresAssetsWithoutADigest() throws {
+        let json = #"{"assets":[{"name":"AppleMusicScrobbler-macOS.zip","browser_download_url":"https://x/y.zip"}]}"#
+        let release = try JSONDecoder().decode(UpdateChecker.GitHubRelease.self, from: Data(json.utf8))
+        #expect(UpdateChecker.asset(named: UpdateChecker.macAssetName, in: release.assets) == nil)
+        #expect(UpdateChecker.asset(named: UpdateChecker.macAssetName, in: nil) == nil)
+    }
+}

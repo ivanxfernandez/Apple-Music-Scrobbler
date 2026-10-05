@@ -16,7 +16,10 @@ final class Notifier: NSObject, UNUserNotificationCenterDelegate {
         center?.delegate = self
     }
 
-    func show(_ title: String, _ body: String, url: URL? = nil) {
+    /// Called when the user clicks a notification shown with an `action`.
+    var onAction: ((String) -> Void)?
+
+    func show(_ title: String, _ body: String, url: URL? = nil, action: String? = nil) {
         guard let center else {
             Log.write("[notification] \(title): \(body)")
             return
@@ -26,7 +29,8 @@ final class Notifier: NSObject, UNUserNotificationCenterDelegate {
             let content = UNMutableNotificationContent()
             content.title = title
             content.body = body
-            if let url { content.userInfo = ["url": url.absoluteString] }
+            if let url { content.userInfo["url"] = url.absoluteString }
+            if let action { content.userInfo["action"] = action }
             center.add(UNNotificationRequest(identifier: UUID().uuidString, content: content, trigger: nil))
         }
     }
@@ -39,7 +43,10 @@ final class Notifier: NSObject, UNUserNotificationCenterDelegate {
 
     func userNotificationCenter(_ center: UNUserNotificationCenter, didReceive response: UNNotificationResponse,
                                 withCompletionHandler completionHandler: @escaping () -> Void) {
-        if let text = response.notification.request.content.userInfo["url"] as? String, let url = URL(string: text) {
+        let info = response.notification.request.content.userInfo
+        if let action = info["action"] as? String {
+            DispatchQueue.main.async { self.onAction?(action) }
+        } else if let text = info["url"] as? String, let url = URL(string: text) {
             DispatchQueue.main.async { NSWorkspace.shared.open(url) }
         }
         completionHandler()

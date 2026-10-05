@@ -13,6 +13,7 @@ final class MenuBarApp: NSObject, NSMenuDelegate {
     private let scrobbler: Scrobbler
     private let discord: DiscordPresence
     private let setup = SetupWindowController()
+    private let updater = Updater()
 
     private let statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
     private let nowItem = NSMenuItem(title: "Nothing playing", action: nil, keyEquivalent: "")
@@ -53,9 +54,9 @@ final class MenuBarApp: NSObject, NSMenuDelegate {
         }
         timer?.tolerance = 0.1
 
-        // First update check a minute after starting, then daily.
+        // First update check a minute after starting (right away when testing the updater), then daily.
         if !AppInfo.gitHubRepo.isEmpty {
-            updateTimer = Timer.scheduledTimer(withTimeInterval: 60, repeats: false) { [weak self] _ in
+            updateTimer = Timer.scheduledTimer(withTimeInterval: UpdateChecker.pretendVersion == nil ? 60 : 3, repeats: false) { [weak self] _ in
                 MainActor.assumeIsolated { self?.scheduledUpdateCheck() }
             }
         }
@@ -63,6 +64,15 @@ final class MenuBarApp: NSObject, NSMenuDelegate {
         Log.write(dryRun
             ? "Started \(AppInfo.version) (dry run: nothing is sent to Last.fm)"
             : "Started \(AppInfo.version), scrobbling as \(settings.username)")
+        Notifier.shared.onAction = { [weak self] action in
+            if action == "install-update" { self?.openUpdate() }
+        }
+        if !settings.lastRunVersion.isEmpty && settings.lastRunVersion != AppInfo.version {
+            Log.write("Updated from \(settings.lastRunVersion) to \(AppInfo.version)")
+            Notifier.shared.show("Updated to \(AppInfo.version)", "\(AppInfo.name) is up to date. See what's new on the release page.",
+                                 url: AppInfo.repoUrl.isEmpty ? nil : URL(string: "\(AppInfo.repoUrl)/releases/tag/v\(AppInfo.version)"))
+        }
+        settings.lastRunVersion = AppInfo.version
         if justConnected {
             Notifier.shared.show("Connected to Last.fm", "Scrobbling Music as \(settings.username). I'll be here in the menu bar.")
         }
@@ -228,8 +238,43 @@ final class MenuBarApp: NSObject, NSMenuDelegate {
 
     // MARK: - Actions
 
+    /// Asks before installing; Release Notes opens the release page.
     @objc private func openUpdate() {
-        if let url = update?.url { NSWorkspace.shared.open(url) }
+        guard let update else { return }
+        let alert = NSAlert()
+        alert.messageText = "Update to \(AppInfo.name) \(update.tag)?"
+        switch Updater.installLocation() {
+        case .success where update.download != nil:
+            alert.informativeText = "The app downloads the new version, checks it, and restarts. Your settings and Last.fm login are kept."
+            alert.addButton(withTitle: "Install and Restart")
+        case .failure(let reason):
+            alert.informativeText = "It can't update itself because \(reason). You can download the new version from the release page."
+            alert.addButton(withTitle: "Open Release Page")
+        default:
+            alert.informativeText = "You can download the new version from the release page."
+            alert.addButton(withTitle: "Open Release Page")
+        }
+        alert.addButton(withTitle: "Later")
+        if alert.buttons.first?.title == "Install and Restart" { alert.addButton(withTitle: "Release Notes") }
+        NSApp.activate(ignoringOtherApps: true)
+        switch alert.runModal() {
+        case .alertFirstButtonReturn:
+            if alert.buttons.first?.title == "Install and Restart" {
+                updateItem.title = "Installing \(update.tag)\u{2026}"
+                updateItem.isEnabled = false
+                updater.install(update) { [weak self] in
+                    self?.updateItem.isEnabled = true
+                    self?.updateItem.title = "\u{2B06} Update Available: \(update.tag)"
+                    NSWorkspace.shared.open(update.url)
+                }
+            } else {
+                NSWorkspace.shared.open(update.url)
+            }
+        case .alertThirdButtonReturn:
+            NSWorkspace.shared.open(update.url)
+        default:
+            break
+        }
     }
 
     @objc private func allowMusic() {
@@ -360,7 +405,7 @@ final class MenuBarApp: NSObject, NSMenuDelegate {
             if manual || settings.updateNotifiedFor != release.tag {
                 Log.write("Update available: \(release.tag)")
                 settings.updateNotifiedFor = release.tag
-                Notifier.shared.show("Update available", "\(AppInfo.name) \(release.tag) is out. Click to download it.", url: release.url)
+                Notifier.shared.show("Update available", "\(AppInfo.name) \(release.tag) is out. Click to install it.", action: "install-update")
             }
         } catch {
             Log.write("Update check failed: \(error.localizedDescription)")

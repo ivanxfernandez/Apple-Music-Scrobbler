@@ -21,6 +21,15 @@ namespace AppleMusicScrobbler
             DryRun = HasFlag("--dry-run");
             OpenMenuOnStart = HasFlag("--open-menu");
 
+            // --pretend-version X.Y.Z: check for updates as if this were version X.Y.Z, to test the
+            // updater against the latest release (it offers to "update" to it).
+            int pretend = Array.FindIndex(args, a => a.Equals("--pretend-version", StringComparison.OrdinalIgnoreCase));
+            if (pretend >= 0 && pretend + 1 < args.Length && UpdateChecker.TryParseVersion(args[pretend + 1], out var pretendVersion))
+                UpdateChecker.PretendVersion = pretendVersion;
+
+            // After a one-click update: wait for the previous version to exit, delete its exe.
+            Updater.FinishUpdate(args);
+
             if (HasFlag("--show-setup"))
             {
                 // Preview of the first-run window (used by tools/screenshots.ps1); doesn't touch the running app.

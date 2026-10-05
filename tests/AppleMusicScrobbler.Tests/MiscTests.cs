@@ -38,6 +38,42 @@ namespace AppleMusicScrobbler.Tests
             Assert.Equal(newer, UpdateChecker.IsNewer(Version.Parse(candidate), Version.Parse(current)));
     }
 
+    public class ReleaseAssetTests
+    {
+        const string Hash = "a1b4b34c5be87421980a95fd8973d38bb76cdb0cd3e96aeb90314de8059a6e10";
+
+        [Fact]
+        public void Reads_GitHub_digests()
+        {
+            Assert.Equal(Hash, UpdateChecker.Sha256FromDigest("sha256:" + Hash.ToUpperInvariant()));
+            Assert.Null(UpdateChecker.Sha256FromDigest("sha256:abc"));
+            Assert.Null(UpdateChecker.Sha256FromDigest("md5:" + Hash));
+            Assert.Null(UpdateChecker.Sha256FromDigest("sha256:" + new string('g', 64)));
+            Assert.Null(UpdateChecker.Sha256FromDigest(null));
+        }
+
+        [Fact]
+        public void Picks_the_exe_with_its_digest()
+        {
+            string json = "{\"tag_name\":\"v1.3.0\",\"assets\":[" +
+                "{\"name\":\"AppleMusicScrobbler-macOS.zip\",\"browser_download_url\":\"https://github.com/o/r/releases/download/v1.3.0/AppleMusicScrobbler-macOS.zip\",\"digest\":\"sha256:" + new string('b', 64) + "\"}," +
+                "{\"name\":\"AppleMusicScrobbler.exe\",\"browser_download_url\":\"https://github.com/o/r/releases/download/v1.3.0/AppleMusicScrobbler.exe\",\"digest\":\"sha256:" + Hash + "\"}]}";
+            var release = UpdateChecker.ParseRelease(System.Text.Encoding.UTF8.GetBytes(json));
+            var asset = UpdateChecker.FindAsset(release, UpdateChecker.WindowsAssetName);
+            Assert.NotNull(asset);
+            Assert.EndsWith("/AppleMusicScrobbler.exe", asset.DownloadUrl);
+            Assert.Equal(Hash, UpdateChecker.Sha256FromDigest(asset.Digest));
+        }
+
+        [Fact]
+        public void Ignores_assets_without_a_digest()
+        {
+            string json = "{\"assets\":[{\"name\":\"AppleMusicScrobbler.exe\",\"browser_download_url\":\"https://x/y.exe\"}]}";
+            Assert.Null(UpdateChecker.FindAsset(UpdateChecker.ParseRelease(System.Text.Encoding.UTF8.GetBytes(json)), UpdateChecker.WindowsAssetName));
+            Assert.Null(UpdateChecker.FindAsset(UpdateChecker.ParseRelease(System.Text.Encoding.UTF8.GetBytes("{}")), UpdateChecker.WindowsAssetName));
+        }
+    }
+
     public class LastFmSignatureTests
     {
         static string Md5(string s) =>

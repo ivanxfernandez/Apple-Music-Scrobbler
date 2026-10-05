@@ -29,6 +29,8 @@ namespace AppleMusicScrobbler
         public bool ShowOnDiscord { get; set; } = true;
         /// <summary>Last version we showed an update notification for, so it's only shown once.</summary>
         public string UpdateNotifiedFor { get; set; } = "";
+        /// <summary>Version that ran last time, to say "Updated to …" once after an update.</summary>
+        public string LastRunVersion { get; set; } = "";
         /// <summary>"Artist - Title" of the latest scrobble, shown in the tray menu.</summary>
         public string LastScrobbled { get; set; } = "";
         /// <summary>Latest accepted scrobbles, newest first (see RecentScrobbles).</summary>
