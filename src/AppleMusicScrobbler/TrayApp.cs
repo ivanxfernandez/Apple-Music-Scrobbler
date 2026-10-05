@@ -6,6 +6,7 @@ using System.Reflection;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 using AppleMusicScrobbler.Discord;
+using static AppleMusicScrobbler.Localization;
 
 namespace AppleMusicScrobbler
 {
@@ -47,31 +48,31 @@ namespace AppleMusicScrobbler
             _iconActive = IconFactory.CreateIcon(IconFactory.Red, iconSize);
             _iconPaused = IconFactory.CreateIcon(IconFactory.Grey, iconSize);
 
-            _nowItem = new ToolStripMenuItem("Nothing playing") { Enabled = false };
-            _lastItem = new ToolStripMenuItem("Nothing scrobbled yet") { Enabled = false };
-            _recentItem = new ToolStripMenuItem("Recent scrobbles");
+            _nowItem = new ToolStripMenuItem(L("Nothing playing")) { Enabled = false };
+            _lastItem = new ToolStripMenuItem(L("Nothing scrobbled yet")) { Enabled = false };
+            _recentItem = new ToolStripMenuItem(L("Recent scrobbles"));
             _recentItem.DropDownItems.Add("Nothing scrobbled yet"); // placeholder so the arrow shows; filled when opened
             _recentItem.DropDownOpening += (s, e) => BuildRecentMenu();
-            _updateItem = new ToolStripMenuItem("Update available", null, (s, e) => OfferUpdate()) { Visible = false };
+            _updateItem = new ToolStripMenuItem(L("Update available"), null, (s, e) => OfferUpdate()) { Visible = false };
             _updateItem.Font = new Font(_updateItem.Font, FontStyle.Bold);
-            _loveItem = new ToolStripMenuItem("♥ Love this song on Last.fm", null, async (s, e) => await LoveCurrentAsync());
-            _ignoreItem = new ToolStripMenuItem("Don't scrobble this artist", null, (s, e) => ToggleIgnoreCurrent());
-            _ignoredListItem = new ToolStripMenuItem("Ignored artists");
+            _loveItem = new ToolStripMenuItem(L("♥ Love this song on Last.fm"), null, async (s, e) => await LoveCurrentAsync());
+            _ignoreItem = new ToolStripMenuItem(L("Don't scrobble this artist"), null, (s, e) => ToggleIgnoreCurrent());
+            _ignoredListItem = new ToolStripMenuItem(L("Ignored artists"));
             _ignoredListItem.DropDownItems.Add("No ignored artists"); // placeholder so the arrow shows; filled when opened
             _ignoredListItem.DropDownOpening += (s, e) => BuildIgnoredMenu();
-            _pauseItem = new ToolStripMenuItem("Pause scrobbling", null, (s, e) => TogglePause()) { Checked = settings.Paused };
+            _pauseItem = new ToolStripMenuItem(L("Pause scrobbling"), null, (s, e) => TogglePause()) { Checked = settings.Paused };
 
-            _startupItem = new ToolStripMenuItem("Start with Windows", null, (s, e) => ToggleStartup()) { Checked = Startup.IsEnabled };
-            _checkUpdatesItem = new ToolStripMenuItem("Check for updates automatically", null, (s, e) => ToggleUpdateChecks())
+            _startupItem = new ToolStripMenuItem(L("Start with Windows"), null, (s, e) => ToggleStartup()) { Checked = Startup.IsEnabled };
+            _checkUpdatesItem = new ToolStripMenuItem(L("Check for updates automatically"), null, (s, e) => ToggleUpdateChecks())
             {
                 Checked = settings.CheckForUpdates,
                 Visible = AppInfo.GitHubRepo.Length > 0,
             };
-            var options = new ToolStripMenuItem("Options");
-            var cleanItem = new ToolStripMenuItem("Clean up titles (remove “Remaster”, “- Single”…)")
+            var options = new ToolStripMenuItem(L("Options"));
+            var cleanItem = new ToolStripMenuItem(L("Clean up titles (remove “Remaster”, “- Single”…)"))
             {
                 Checked = settings.CleanTitles,
-                ToolTipText = "“Song [2022 Remaster]” is scrobbled as “Song”, “Album (Deluxe Edition)” as “Album”",
+                ToolTipText = L("“Song [2022 Remaster]” is scrobbled as “Song”, “Album (Deluxe Edition)” as “Album”"),
             };
             cleanItem.Click += (s, e) =>
             {
@@ -79,10 +80,10 @@ namespace AppleMusicScrobbler
                 cleanItem.Checked = _settings.CleanTitles;
                 SaveSettings();
             };
-            var mainArtistItem = new ToolStripMenuItem("Scrobble only the main artist of collaborations")
+            var mainArtistItem = new ToolStripMenuItem(L("Scrobble only the main artist of collaborations"))
             {
                 Checked = settings.MainArtistOnly,
-                ToolTipText = "“Joji & BENEE” is scrobbled as “Joji”. Bands like “Simon & Garfunkel” are left alone (Last.fm's listener counts tell them apart).",
+                ToolTipText = L("“Joji & BENEE” is scrobbled as “Joji”. Bands like “Simon & Garfunkel” are left alone (Last.fm's listener counts tell them apart)."),
             };
             mainArtistItem.Click += (s, e) =>
             {
@@ -91,7 +92,7 @@ namespace AppleMusicScrobbler
                 SaveSettings();
                 Log.Write(_settings.MainArtistOnly ? "Scrobbling only the main artist of collaborations" : "Scrobbling full artist credits");
             };
-            _discordItem = new ToolStripMenuItem("Show “Listening to” on Discord", null, (s, e) => ToggleDiscord())
+            _discordItem = new ToolStripMenuItem(L("Show “Listening to” on Discord"), null, (s, e) => ToggleDiscord())
             {
                 Checked = settings.ShowOnDiscord,
                 Visible = DiscordPresence.Available,
@@ -105,8 +106,8 @@ namespace AppleMusicScrobbler
                 _checkUpdatesItem,
                 _ignoredListItem,
                 new ToolStripSeparator(),
-                new ToolStripMenuItem("Switch Last.fm account...", null, (s, e) => Reconnect()),
-                new ToolStripMenuItem("Open log", null, (s, e) => OpenLog()),
+                new ToolStripMenuItem(L("Switch Last.fm account..."), null, (s, e) => Reconnect()),
+                new ToolStripMenuItem(L("Open log"), null, (s, e) => OpenLog()),
             });
 
             var menu = new ContextMenuStrip();
@@ -120,12 +121,12 @@ namespace AppleMusicScrobbler
                 _loveItem,
                 _ignoreItem,
                 _pauseItem,
-                new ToolStripMenuItem("Open my Last.fm profile", null, (s, e) => AppInfo.OpenUrl("https://www.last.fm/user/" + Uri.EscapeDataString(_settings.Username ?? ""))),
+                new ToolStripMenuItem(L("Open my Last.fm profile"), null, (s, e) => AppInfo.OpenUrl("https://www.last.fm/user/" + Uri.EscapeDataString(_settings.Username ?? ""))),
                 options,
                 new ToolStripSeparator(),
-                new ToolStripMenuItem("Report a problem...", null, (s, e) => ReportProblem()),
-                new ToolStripMenuItem($"About {AppInfo.Name}", null, (s, e) => ShowAbout()),
-                new ToolStripMenuItem("Quit", null, (s, e) => ExitThread()),
+                new ToolStripMenuItem(L("Report a problem..."), null, (s, e) => ReportProblem()),
+                new ToolStripMenuItem(L("About {0}", AppInfo.Name), null, (s, e) => ShowAbout()),
+                new ToolStripMenuItem(L("Quit"), null, (s, e) => ExitThread()),
             });
 
             _tray = new NotifyIcon
@@ -174,7 +175,7 @@ namespace AppleMusicScrobbler
             if (_settings.LastRunVersion.Length > 0 && _settings.LastRunVersion != AppInfo.Version)
             {
                 Log.Write($"Updated from {_settings.LastRunVersion} to {AppInfo.Version}");
-                ShowBalloon($"Updated to {AppInfo.Version}", $"{AppInfo.Name} is up to date. Click to see what's new.", ToolTipIcon.Info,
+                ShowBalloon(L("Updated to {0}", AppInfo.Version), L("{0} is up to date. Click to see what's new.", AppInfo.Name), ToolTipIcon.Info,
                     AppInfo.RepoUrl.Length > 0 ? $"{AppInfo.RepoUrl}/releases/tag/v{AppInfo.Version}" : null);
             }
             if (_settings.LastRunVersion != AppInfo.Version)
@@ -184,8 +185,8 @@ namespace AppleMusicScrobbler
             }
 
             if (justConnected)
-                ShowBalloon("Connected to Last.fm",
-                    $"Scrobbling Apple Music as {_settings.Username}. I'll be here in the tray.", ToolTipIcon.Info);
+                ShowBalloon(L("Connected to Last.fm"),
+                    L("Scrobbling Apple Music as {0}. I'll be here in the tray.", _settings.Username), ToolTipIcon.Info);
         }
 
         async void OnTick(object sender, EventArgs e)
@@ -216,21 +217,27 @@ namespace AppleMusicScrobbler
         {
             var np = _scrobbler.Current;
             bool ignored = _scrobbler.CurrentIsIgnored;
-            string playing = np != null && np.IsValid ? np.ToString() + (np.IsPlaying ? "" : " (paused)") + (ignored ? " (not scrobbled)" : "") : "Nothing playing";
+            string playing = L("Nothing playing");
+            if (np != null && np.IsValid)
+            {
+                playing = np.ToString();
+                if (!np.IsPlaying) playing = L("{0} (paused)", playing);
+                if (ignored) playing = L("{0} (not scrobbled)", playing);
+            }
 
             SetText(_nowItem, MenuText(playing));
-            SetText(_lastItem, string.IsNullOrEmpty(_scrobbler.LastScrobbled) ? "Nothing scrobbled yet" : MenuText("Last scrobbled: " + _scrobbler.LastScrobbled));
-            SetText(_recentItem, _scrobbler.Pending > 0 ? $"Recent scrobbles ({_scrobbler.Pending} waiting)" : "Recent scrobbles");
+            SetText(_lastItem, string.IsNullOrEmpty(_scrobbler.LastScrobbled) ? L("Nothing scrobbled yet") : MenuText(L("Last scrobbled: {0}", _scrobbler.LastScrobbled)));
+            SetText(_recentItem, _scrobbler.Pending > 0 ? L("Recent scrobbles ({0} waiting)", _scrobbler.Pending) : L("Recent scrobbles"));
             _loveItem.Enabled = np != null && np.IsValid && !Program.DryRun;
             _ignoreItem.Enabled = np != null && np.IsValid;
             SetText(_ignoreItem, np != null && np.IsValid
-                ? MenuText(ignored ? $"Scrobble {np.Artist} again" : $"Don't scrobble {np.Artist}")
-                : "Don't scrobble this artist");
-            SetText(_discordItem, "Show “Listening to” on Discord" +
-                (_settings.ShowOnDiscord && !_discord.IsConnected ? " (waiting for Discord)" : ""));
+                ? MenuText(ignored ? L("Scrobble {0} again", np.Artist) : L("Don't scrobble {0}", np.Artist))
+                : L("Don't scrobble this artist"));
+            SetText(_discordItem, _settings.ShowOnDiscord && !_discord.IsConnected
+                ? L("Show “Listening to” on Discord (waiting for Discord)") : L("Show “Listening to” on Discord"));
 
-            string tip = (_settings.Paused ? "Scrobbling paused\n" : "") + playing;
-            if (_scrobbler.Pending > 0) tip += $"\n{_scrobbler.Pending} waiting to send";
+            string tip = (_settings.Paused ? L("Scrobbling paused") + "\n" : "") + playing;
+            if (_scrobbler.Pending > 0) tip += "\n" + L("{0} waiting to send", _scrobbler.Pending);
             if (tip.Length > 63) tip = tip.Substring(0, 62) + "…"; // Windows limit
             if (_tray.Text != tip) _tray.Text = tip;
         }
@@ -241,22 +248,22 @@ namespace AppleMusicScrobbler
             var items = _recentItem.DropDownItems;
             items.Clear();
             var recent = _scrobbler.Recent;
-            if (recent.Count == 0) items.Add(new ToolStripMenuItem("Nothing scrobbled yet") { Enabled = false });
+            if (recent.Count == 0) items.Add(new ToolStripMenuItem(L("Nothing scrobbled yet")) { Enabled = false });
             foreach (var r in recent)
             {
                 string url = r.Url;
                 items.Add(new ToolStripMenuItem(MenuText($"{RecentScrobbles.Time(r, DateTime.Now)}   {r.Artist} - {r.Track}"), null,
-                    (s, e) => AppInfo.OpenUrl(url)) { ToolTipText = "Open on Last.fm" });
+                    (s, e) => AppInfo.OpenUrl(url)) { ToolTipText = L("Open on Last.fm") });
             }
 
             var pending = _scrobbler.PendingScrobbles;
             if (pending.Count > 0)
             {
                 items.Add(new ToolStripSeparator());
-                items.Add(new ToolStripMenuItem(pending.Count == 1 ? "1 waiting to send" : $"{pending.Count} waiting to send") { Enabled = false });
+                items.Add(new ToolStripMenuItem(pending.Count == 1 ? L("1 waiting to send") : L("{0} waiting to send", pending.Count)) { Enabled = false });
                 for (int i = pending.Count - 1; i >= Math.Max(0, pending.Count - 5); i--)
                     items.Add(new ToolStripMenuItem(MenuText($"    {pending[i].Artist} - {pending[i].Track}")) { Enabled = false });
-                items.Add(new ToolStripMenuItem("Send now", null, (s, e) =>
+                items.Add(new ToolStripMenuItem(L("Send now"), null, (s, e) =>
                 {
                     Log.Write($"Sending {_scrobbler.Pending} waiting scrobble(s) now");
                     _scrobbler.RetrySoon();
@@ -264,7 +271,7 @@ namespace AppleMusicScrobbler
             }
 
             items.Add(new ToolStripSeparator());
-            items.Add(new ToolStripMenuItem("Open my Last.fm library", null,
+            items.Add(new ToolStripMenuItem(L("Open my Last.fm library"), null,
                 (s, e) => AppInfo.OpenUrl("https://www.last.fm/user/" + Uri.EscapeDataString(_settings.Username ?? "") + "/library")));
         }
 
@@ -293,8 +300,8 @@ namespace AppleMusicScrobbler
             items.Clear();
             var artists = _settings.IgnoredArtists;
             items.Add(new ToolStripMenuItem(artists.Count == 0
-                ? "No ignored artists. Use \"Don't scrobble\" while one plays."
-                : "Not sent to Last.fm or shown on Discord. Click to undo:") { Enabled = false });
+                ? L("No ignored artists. Use \"Don't scrobble\" while one plays.")
+                : L("Not sent to Last.fm or shown on Discord. Click to undo:")) { Enabled = false });
             foreach (string artist in artists.ToList())
             {
                 string name = artist;
@@ -337,12 +344,12 @@ namespace AppleMusicScrobbler
             {
                 await _api.LoveAsync(np.Artist, np.Title);
                 Log.Write("Loved: " + np);
-                ShowBalloon("♥ Loved on Last.fm", np.ToString(), ToolTipIcon.None);
+                ShowBalloon(L("♥ Loved on Last.fm"), np.ToString(), ToolTipIcon.None);
             }
             catch (Exception ex)
             {
                 Log.Write("Love failed: " + ex.Message);
-                ShowBalloon("Couldn't love this song", ex.Message, ToolTipIcon.Warning);
+                ShowBalloon(L("Couldn't love this song"), ex.Message, ToolTipIcon.Warning);
             }
         }
 
@@ -354,25 +361,25 @@ namespace AppleMusicScrobbler
                 var release = await UpdateChecker.GetNewerReleaseAsync();
                 if (release == null)
                 {
-                    if (manual) ShowBalloon("You're up to date", $"{AppInfo.Name} {AppInfo.Version} is the latest version.", ToolTipIcon.Info);
+                    if (manual) ShowBalloon(L("You're up to date"), L("{0} {1} is the latest version.", AppInfo.Name, AppInfo.Version), ToolTipIcon.Info);
                     return;
                 }
 
                 _update = release;
-                _updateItem.Text = $"⬆ Update available: {release.Tag}";
+                _updateItem.Text = L("⬆ Update available: {0}", release.Tag);
                 _updateItem.Visible = true;
                 if (manual || _settings.UpdateNotifiedFor != release.Tag)
                 {
                     Log.Write("Update available: " + release.Tag);
                     _settings.UpdateNotifiedFor = release.Tag;
                     SaveSettings();
-                    ShowBalloon("Update available", $"{AppInfo.Name} {release.Tag} is out. Click to install it.", ToolTipIcon.Info, release.Url, installsUpdate: true);
+                    ShowBalloon(L("Update available"), L("{0} {1} is out. Click to install it.", AppInfo.Name, release.Tag), ToolTipIcon.Info, release.Url, installsUpdate: true);
                 }
             }
             catch (Exception ex)
             {
                 Log.Write("Update check failed: " + ex.Message);
-                if (manual) ShowBalloon("Couldn't check for updates", ex.Message, ToolTipIcon.Warning);
+                if (manual) ShowBalloon(L("Couldn't check for updates"), ex.Message, ToolTipIcon.Warning);
             }
         }
 
@@ -387,24 +394,23 @@ namespace AppleMusicScrobbler
         {
             var release = _update;
             if (release == null || _installing) return;
-            string reason = string.IsNullOrEmpty(release.DownloadUrl) ? "this release has no checked download for Windows" : Updater.CannotInstallReason();
+            string reason = string.IsNullOrEmpty(release.DownloadUrl) ? L("this release has no checked download for Windows") : Updater.CannotInstallReason();
             if (reason != null)
             {
-                if (MessageBox.Show($"{AppInfo.Name} {release.Tag} is out, but the app can't update itself because {reason}.\n\nOpen the release page to download it?",
+                if (MessageBox.Show(L("{0} {1} is out, but the app can't update itself because {2}.\n\nOpen the release page to download it?", AppInfo.Name, release.Tag, reason),
                         AppInfo.Name, MessageBoxButtons.YesNo, MessageBoxIcon.Information) == DialogResult.Yes)
                     AppInfo.OpenUrl(release.Url);
                 return;
             }
 
             var answer = MessageBox.Show(
-                $"Update to {AppInfo.Name} {release.Tag}?\n\nThe app downloads the new version, checks it, and restarts. Your settings and Last.fm login are kept.\n\n" +
-                "Yes: install and restart\nNo: open the release notes instead",
+                L("Update to {0} {1}?\n\nThe app downloads the new version, checks it, and restarts. Your settings and Last.fm login are kept.\n\nYes: install and restart\nNo: open the release notes instead", AppInfo.Name, release.Tag),
                 AppInfo.Name, MessageBoxButtons.YesNoCancel, MessageBoxIcon.Question);
             if (answer == DialogResult.No) AppInfo.OpenUrl(release.Url);
             if (answer != DialogResult.Yes) return;
 
             _installing = true;
-            _updateItem.Text = $"Installing {release.Tag}...";
+            _updateItem.Text = L("Installing {0}...", release.Tag);
             _updateItem.Enabled = false;
             try
             {
@@ -414,22 +420,22 @@ namespace AppleMusicScrobbler
             catch (Exception ex)
             {
                 _installing = false;
-                _updateItem.Text = $"⬆ Update available: {release.Tag}";
+                _updateItem.Text = L("⬆ Update available: {0}", release.Tag);
                 _updateItem.Enabled = true;
                 Log.Write($"Update to {release.Tag} failed: {ex.Message}");
-                ShowBalloon("Couldn't install the update", ex.Message + ". Click to download it from the release page.", ToolTipIcon.Warning, release.Url);
+                ShowBalloon(L("Couldn't install the update"), L("{0}. Click to download it from the release page.", ex.Message), ToolTipIcon.Warning, release.Url);
             }
         }
 
         void ShowAbout()
         {
-            string text = $"{AppInfo.Name} {AppInfo.Version}\n\nScrobbles the Apple Music app for Windows to Last.fm.\nNot affiliated with Apple or Last.fm.";
+            string text = L("{0} {1}\n\nScrobbles the Apple Music app for Windows to Last.fm.\nNot affiliated with Apple or Last.fm.", AppInfo.Name, AppInfo.Version);
             if (AppInfo.RepoUrl.Length == 0)
             {
                 MessageBox.Show(text, AppInfo.Name, MessageBoxButtons.OK, MessageBoxIcon.Information);
                 return;
             }
-            var answer = MessageBox.Show(text + "\n\nOpen the project page (and check for updates)?", AppInfo.Name,
+            var answer = MessageBox.Show(text + L("\n\nOpen the project page (and check for updates)?"), AppInfo.Name,
                 MessageBoxButtons.YesNo, MessageBoxIcon.Information);
             if (answer == DialogResult.Yes)
             {
@@ -485,8 +491,8 @@ namespace AppleMusicScrobbler
         {
             if (_authWarningShown) return;
             _authWarningShown = true;
-            ShowBalloon("Last.fm needs you to reconnect",
-                "Right-click the tray icon and choose Options > \"Switch Last.fm account...\". Your scrobbles are saved until then.",
+            ShowBalloon(L("Last.fm needs you to reconnect"),
+                L("Right-click the tray icon and choose Options > \"Switch Last.fm account...\". Your scrobbles are saved until then."),
                 ToolTipIcon.Warning);
         }
 

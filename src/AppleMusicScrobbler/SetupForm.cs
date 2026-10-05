@@ -1,6 +1,7 @@
 using System;
 using System.Drawing;
 using System.Windows.Forms;
+using static AppleMusicScrobbler.Localization;
 
 namespace AppleMusicScrobbler
 {
@@ -73,17 +74,16 @@ namespace AppleMusicScrobbler
                 return label;
             }
 
-            Paragraph("Connect to Last.fm", u / 2, new Font(Font.FontFamily, Font.Size * 1.5f, FontStyle.Bold));
-            Paragraph("This app watches what the Apple Music app is playing and adds it to your Last.fm profile.", u);
+            Paragraph(L("Connect to Last.fm"), u / 2, new Font(Font.FontFamily, Font.Size * 1.5f, FontStyle.Bold));
+            Paragraph(L("This app watches what the Apple Music app is playing and adds it to your Last.fm profile."), u);
 
             int step = 1;
             if (_needsApiKey)
             {
-                Paragraph($"{step++}. Get a free Last.fm API key", u / 4, new Font(Font, FontStyle.Bold));
-                Paragraph("Last.fm requires every app to have one. It takes a minute: fill in any application name " +
-                          "and description, leave \"Callback URL\" empty, and submit. Then copy the API key and Shared secret here.", u / 4);
+                Paragraph(L("{0}. Get a free Last.fm API key", step++), u / 4, new Font(Font, FontStyle.Bold));
+                Paragraph(L("Last.fm requires every app to have one. It takes a minute: fill in any application name and description, leave \"Callback URL\" empty, and submit. Then copy the API key and Shared secret here."), u / 4);
 
-                var createLink = new LinkLabel { Text = "Create a Last.fm API account", AutoSize = true, Margin = new Padding(0, 0, 0, u / 2) };
+                var createLink = new LinkLabel { Text = L("Create a Last.fm API account"), AutoSize = true, Margin = new Padding(0, 0, 0, u / 2) };
                 createLink.LinkClicked += (s, e) => AppInfo.OpenUrl(CreateApiAccountUrl);
                 layout.Controls.Add(createLink);
 
@@ -92,19 +92,19 @@ namespace AppleMusicScrobbler
                 grid.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
                 _keyBox = new TextBox { Width = u * 20, Text = settings.ApiKey };
                 _secretBox = new TextBox { Width = u * 20, Text = settings.ApiSecret, UseSystemPasswordChar = true };
-                grid.Controls.Add(new Label { Text = "API key", AutoSize = true, Anchor = AnchorStyles.Left }, 0, 0);
+                grid.Controls.Add(new Label { Text = L("API key"), AutoSize = true, Anchor = AnchorStyles.Left }, 0, 0);
                 grid.Controls.Add(_keyBox, 1, 0);
-                grid.Controls.Add(new Label { Text = "Shared secret", AutoSize = true, Anchor = AnchorStyles.Left }, 0, 1);
+                grid.Controls.Add(new Label { Text = L("Shared secret"), AutoSize = true, Anchor = AnchorStyles.Left }, 0, 1);
                 grid.Controls.Add(_secretBox, 1, 1);
                 layout.Controls.Add(grid);
             }
 
-            Paragraph($"{step}. Allow access to your account", u / 4, new Font(Font, FontStyle.Bold));
-            Paragraph("Click Connect. Last.fm opens in your browser: click \"Yes, allow access\" there and this window finishes by itself.", u / 2);
+            Paragraph(L("{0}. Allow access to your account", step), u / 4, new Font(Font, FontStyle.Bold));
+            Paragraph(L("Click Connect. Last.fm opens in your browser: click \"Yes, allow access\" there and this window finishes by itself."), u / 2);
 
             _startupBox = new CheckBox
             {
-                Text = "Start automatically when I sign in to Windows",
+                Text = L("Start automatically when I sign in to Windows"),
                 AutoSize = true,
                 Checked = true,
                 Margin = new Padding(0, 0, 0, u),
@@ -118,8 +118,8 @@ namespace AppleMusicScrobbler
                 MinimumSize = new Size(width, 0),
                 Margin = new Padding(0),
             };
-            var cancel = new Button { Text = "Cancel", DialogResult = DialogResult.Cancel, AutoSize = true, MinimumSize = new Size(u * 5, 0) };
-            _connectButton = new Button { Text = "Connect", AutoSize = true, MinimumSize = new Size(u * 5, 0) };
+            var cancel = new Button { Text = L("Cancel"), DialogResult = DialogResult.Cancel, AutoSize = true, MinimumSize = new Size(u * 5, 0) };
+            _connectButton = new Button { Text = L("Connect"), AutoSize = true, MinimumSize = new Size(u * 5, 0) };
             _connectButton.Click += OnConnectClick;
             buttons.Controls.Add(cancel);
             buttons.Controls.Add(_connectButton);
@@ -129,7 +129,7 @@ namespace AppleMusicScrobbler
 
             _status = Paragraph("", 0, null, SystemColors.GrayText);
             _status.Margin = new Padding(0, u / 2, 0, 0);
-            _reopenLink = new LinkLabel { Text = "Open the Last.fm page again", AutoSize = true, Visible = false };
+            _reopenLink = new LinkLabel { Text = L("Open the Last.fm page again"), AutoSize = true, Visible = false };
             _reopenLink.LinkClicked += (s, e) => { if (_token != null) AppInfo.OpenUrl(_api.GetAuthUrl(_token)); };
             layout.Controls.Add(_reopenLink);
 
@@ -144,7 +144,7 @@ namespace AppleMusicScrobbler
                 string key = _keyBox.Text.Trim(), secret = _secretBox.Text.Trim();
                 if (key.Length == 0 || secret.Length == 0)
                 {
-                    ShowStatus("Paste both the API key and the Shared secret first.", error: true);
+                    ShowStatus(L("Paste both the API key and the Shared secret first."), error: true);
                     return;
                 }
                 _settings.ApiKey = key;
@@ -152,24 +152,24 @@ namespace AppleMusicScrobbler
             }
 
             SetBusy(true);
-            ShowStatus("Contacting Last.fm...");
+            ShowStatus(L("Contacting Last.fm..."));
             try
             {
                 _token = await _api.GetTokenAsync();
                 _tokenIssued = DateTime.UtcNow;
                 AppInfo.OpenUrl(_api.GetAuthUrl(_token));
-                ShowStatus("Waiting for you to click \"Yes, allow access\" on the Last.fm page in your browser...");
+                ShowStatus(L("Waiting for you to click \"Yes, allow access\" on the Last.fm page in your browser..."));
                 _reopenLink.Visible = true;
                 _poll.Start();
             }
             catch (LastFmException ex) when (ex.Code == 10 || ex.Code == 26)
             {
-                ShowStatus("Last.fm didn't accept that API key. Check you copied the API key and Shared secret correctly.", error: true);
+                ShowStatus(L("Last.fm didn't accept that API key. Check you copied the API key and Shared secret correctly."), error: true);
                 SetBusy(false);
             }
             catch (Exception ex)
             {
-                ShowStatus("Couldn't reach Last.fm: " + ex.Message, error: true);
+                ShowStatus(L("Couldn't reach Last.fm: {0}", ex.Message), error: true);
                 SetBusy(false);
             }
         }
@@ -191,21 +191,21 @@ namespace AppleMusicScrobbler
             catch (LastFmException ex) when (ex.Code == 14) // not approved yet
             {
                 if (DateTime.UtcNow - _tokenIssued < TimeSpan.FromMinutes(10)) _poll.Start();
-                else Fail("Timed out waiting for approval. Click Connect to try again.");
+                else Fail(L("Timed out waiting for approval. Click Connect to try again."));
             }
             catch (LastFmException ex) when (ex.Code == 4 || ex.Code == 15) // token expired/invalid
             {
-                Fail("That approval link expired. Click Connect to try again.");
+                Fail(L("That approval link expired. Click Connect to try again."));
             }
             catch (LastFmException ex) when (ex.Code == 13)
             {
-                Fail("Last.fm rejected the Shared secret. Check you copied it correctly.");
+                Fail(L("Last.fm rejected the Shared secret. Check you copied it correctly."));
             }
             catch (Exception ex)
             {
                 if (IsDisposed) return;
                 if (DateTime.UtcNow - _tokenIssued < TimeSpan.FromMinutes(10)) _poll.Start(); // network blip: keep trying
-                else Fail("Couldn't reach Last.fm: " + ex.Message);
+                else Fail(L("Couldn't reach Last.fm: {0}", ex.Message));
             }
         }
 

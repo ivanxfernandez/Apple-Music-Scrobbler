@@ -36,7 +36,7 @@ namespace AppleMusicScrobbler
             }
             catch (Exception)
             {
-                return "it doesn't have permission to replace its exe in " + Path.GetDirectoryName(ExePath);
+                return Localization.L("it doesn't have permission to replace its exe in {0}", Path.GetDirectoryName(ExePath));
             }
         }
 
@@ -44,7 +44,7 @@ namespace AppleMusicScrobbler
         public static async Task InstallAsync(ReleaseInfo release)
         {
             if (string.IsNullOrEmpty(release.DownloadUrl) || string.IsNullOrEmpty(release.Sha256))
-                throw new InvalidOperationException("this release has no checked download for Windows");
+                throw new InvalidOperationException(Localization.L("this release has no checked download for Windows"));
 
             Log.Write($"Downloading {release.Tag}...");
             TryDelete(NewPath);
@@ -61,12 +61,12 @@ namespace AppleMusicScrobbler
                 using (var sha = SHA256.Create())
                 using (var file = File.OpenRead(NewPath))
                     hash = string.Concat(sha.ComputeHash(file).Select(b => b.ToString("x2")));
-                if (hash != release.Sha256) throw new InvalidOperationException("the download doesn't match the published SHA-256");
+                if (hash != release.Sha256) throw new InvalidOperationException(Localization.L("the download doesn't match the published SHA-256"));
 
                 var name = AssemblyName.GetAssemblyName(NewPath);
                 if (name.Name != Assembly.GetExecutingAssembly().GetName().Name || !UpdateChecker.TryParseVersion(name.Version.ToString(3), out var version) ||
                     UpdateChecker.IsNewer(version, release.Version) || UpdateChecker.IsNewer(release.Version, version))
-                    throw new InvalidOperationException("the download isn't the expected app");
+                    throw new InvalidOperationException(Localization.L("the download isn't the expected app"));
 
                 // Swap: the running exe can be renamed but not overwritten.
                 TryDelete(OldPath);

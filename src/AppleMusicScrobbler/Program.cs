@@ -27,6 +27,10 @@ namespace AppleMusicScrobbler
             if (pretend >= 0 && pretend + 1 < args.Length && UpdateChecker.TryParseVersion(args[pretend + 1], out var pretendVersion))
                 UpdateChecker.PretendVersion = pretendVersion;
 
+            // --language es: show the app in that language (to review a translation); default: Windows' display language.
+            int language = Array.FindIndex(args, a => a.Equals("--language", StringComparison.OrdinalIgnoreCase));
+            if (language >= 0 && language + 1 < args.Length) Localization.Language = args[language + 1].ToLowerInvariant();
+
             // After a one-click update: wait for the previous version to exit, delete its exe.
             Updater.FinishUpdate(args);
 
@@ -43,7 +47,7 @@ namespace AppleMusicScrobbler
             {
                 if (!firstInstance)
                 {
-                    MessageBox.Show("Apple Music Scrobbler is already running.\n\nLook for the red note icon in the system tray (you may need to click the ^ arrow).",
+                    MessageBox.Show(Localization.L("Apple Music Scrobbler is already running.\n\nLook for the red note icon in the system tray (you may need to click the ^ arrow)."),
                         AppInfo.Name, MessageBoxButtons.OK, MessageBoxIcon.Information);
                     return;
                 }
