@@ -1,6 +1,7 @@
 using System;
 using System.Diagnostics;
 using System.Drawing;
+using System.Linq;
 using System.Reflection;
 using System.Threading.Tasks;
 using System.Windows.Forms;
@@ -23,7 +24,7 @@ namespace AppleMusicScrobbler
         readonly Timer _timer;
         readonly Timer _updateTimer;
         readonly Icon _iconActive, _iconPaused;
-        readonly ToolStripMenuItem _nowItem, _lastItem, _recentItem, _updateItem, _loveItem, _pauseItem;
+        readonly ToolStripMenuItem _nowItem, _lastItem, _recentItem, _updateItem, _loveItem, _ignoreItem, _ignoredListItem, _pauseItem;
         readonly ToolStripMenuItem _startupItem, _checkUpdatesItem, _discordItem;
 
         bool _busy;
@@ -54,6 +55,10 @@ namespace AppleMusicScrobbler
             _updateItem = new ToolStripMenuItem("Update available", null, (s, e) => OfferUpdate()) { Visible = false };
             _updateItem.Font = new Font(_updateItem.Font, FontStyle.Bold);
             _loveItem = new ToolStripMenuItem("♥ Love this song on Last.fm", null, async (s, e) => await LoveCurrentAsync());
+            _ignoreItem = new ToolStripMenuItem("Don't scrobble this artist", null, (s, e) => ToggleIgnoreCurrent());
+            _ignoredListItem = new ToolStripMenuItem("Ignored artists");
+            _ignoredListItem.DropDownItems.Add("No ignored artists"); // placeholder so the arrow shows; filled when opened
+            _ignoredListItem.DropDownOpening += (s, e) => BuildIgnoredMenu();
             _pauseItem = new ToolStripMenuItem("Pause scrobbling", null, (s, e) => TogglePause()) { Checked = settings.Paused };
 
             _startupItem = new ToolStripMenuItem("Start with Windows", null, (s, e) => ToggleStartup()) { Checked = Startup.IsEnabled };
@@ -98,6 +103,7 @@ namespace AppleMusicScrobbler
                 cleanItem,
                 mainArtistItem,
                 _checkUpdatesItem,
+                _ignoredListItem,
                 new ToolStripSeparator(),
                 new ToolStripMenuItem("Switch Last.fm account...", null, (s, e) => Reconnect()),
                 new ToolStripMenuItem("Open log", null, (s, e) => OpenLog()),
@@ -112,6 +118,7 @@ namespace AppleMusicScrobbler
                 new ToolStripSeparator(),
                 _updateItem,
                 _loveItem,
+                _ignoreItem,
                 _pauseItem,
                 new ToolStripMenuItem("Open my Last.fm profile", null, (s, e) => AppInfo.OpenUrl("https://www.last.fm/user/" + Uri.EscapeDataString(_settings.Username ?? ""))),
                 options,
@@ -189,7 +196,8 @@ namespace AppleMusicScrobbler
             {
                 var np = await _reader.ReadAsync();
                 _scrobbler.Update(np);
-                _discord.Update(_scrobbler.Current); // same (cleaned) track info as Last.fm gets
+                // Same (cleaned) track info as Last.fm gets; nothing for ignored artists.
+                _discord.Update(_scrobbler.CurrentIsIgnored ? null : _scrobbler.Current);
                 _lastError = null;
             }
             catch (Exception ex)
@@ -207,12 +215,17 @@ namespace AppleMusicScrobbler
         void UpdateUi()
         {
             var np = _scrobbler.Current;
-            string playing = np != null && np.IsValid ? np.ToString() + (np.IsPlaying ? "" : " (paused)") : "Nothing playing";
+            bool ignored = _scrobbler.CurrentIsIgnored;
+            string playing = np != null && np.IsValid ? np.ToString() + (np.IsPlaying ? "" : " (paused)") + (ignored ? " (not scrobbled)" : "") : "Nothing playing";
 
             SetText(_nowItem, MenuText(playing));
             SetText(_lastItem, string.IsNullOrEmpty(_scrobbler.LastScrobbled) ? "Nothing scrobbled yet" : MenuText("Last scrobbled: " + _scrobbler.LastScrobbled));
             SetText(_recentItem, _scrobbler.Pending > 0 ? $"Recent scrobbles ({_scrobbler.Pending} waiting)" : "Recent scrobbles");
             _loveItem.Enabled = np != null && np.IsValid && !Program.DryRun;
+            _ignoreItem.Enabled = np != null && np.IsValid;
+            SetText(_ignoreItem, np != null && np.IsValid
+                ? MenuText(ignored ? $"Scrobble {np.Artist} again" : $"Don't scrobble {np.Artist}")
+                : "Don't scrobble this artist");
             SetText(_discordItem, "Show “Listening to” on Discord" +
                 (_settings.ShowOnDiscord && !_discord.IsConnected ? " (waiting for Discord)" : ""));
 
@@ -253,6 +266,46 @@ namespace AppleMusicScrobbler
             items.Add(new ToolStripSeparator());
             items.Add(new ToolStripMenuItem("Open my Last.fm library", null,
                 (s, e) => AppInfo.OpenUrl("https://www.last.fm/user/" + Uri.EscapeDataString(_settings.Username ?? "") + "/library")));
+        }
+
+        void ToggleIgnoreCurrent()
+        {
+            var np = _scrobbler.Current;
+            if (np == null || !np.IsValid) return;
+            if (_scrobbler.CurrentIsIgnored)
+            {
+                _settings.IgnoredArtists = _settings.IgnoredArtists.Where(a => !IgnoreList.IsIgnored(np.Artist, new[] { a })).ToList();
+                Log.Write($"Scrobbling {np.Artist} again");
+            }
+            else
+            {
+                _settings.IgnoredArtists = IgnoreList.Adding(np.Artist, _settings.IgnoredArtists);
+                Log.Write($"Ignoring {np.Artist}: not scrobbled or shown on Discord");
+            }
+            SaveSettings();
+            UpdateUi();
+        }
+
+        /// <summary>Ignored artists; clicking one scrobbles it again.</summary>
+        void BuildIgnoredMenu()
+        {
+            var items = _ignoredListItem.DropDownItems;
+            items.Clear();
+            var artists = _settings.IgnoredArtists;
+            items.Add(new ToolStripMenuItem(artists.Count == 0
+                ? "No ignored artists. Use \"Don't scrobble\" while one plays."
+                : "Not sent to Last.fm or shown on Discord. Click to undo:") { Enabled = false });
+            foreach (string artist in artists.ToList())
+            {
+                string name = artist;
+                items.Add(new ToolStripMenuItem(MenuText(name), null, (s, e) =>
+                {
+                    _settings.IgnoredArtists = IgnoreList.Removing(name, _settings.IgnoredArtists);
+                    SaveSettings();
+                    Log.Write($"Scrobbling {name} again");
+                    UpdateUi();
+                }));
+            }
         }
 
         static string MenuText(string text)

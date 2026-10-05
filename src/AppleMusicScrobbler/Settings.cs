@@ -33,6 +33,8 @@ namespace AppleMusicScrobbler
         public string LastRunVersion { get; set; } = "";
         /// <summary>"Artist - Title" of the latest scrobble, shown in the tray menu.</summary>
         public string LastScrobbled { get; set; } = "";
+        /// <summary>Artists not to scrobble or show on Discord (see IgnoreList).</summary>
+        public List<string> IgnoredArtists { get; set; } = new List<string>();
         /// <summary>Latest accepted scrobbles, newest first (see RecentScrobbles).</summary>
         public List<RecentScrobble> RecentScrobbles { get; set; } = new List<RecentScrobble>();
 

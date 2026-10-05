@@ -23,6 +23,9 @@ final class MenuBarApp: NSObject, NSMenuDelegate {
     private let updateItem = NSMenuItem(title: "Update available", action: #selector(openUpdate), keyEquivalent: "")
     private let musicAccessItem = NSMenuItem(title: "Allow Access to Music\u{2026}", action: #selector(allowMusic), keyEquivalent: "")
     private let loveItem = NSMenuItem(title: "\u{2665} Love This Song on Last.fm", action: #selector(loveCurrent), keyEquivalent: "")
+    private let ignoreItem = NSMenuItem(title: "Don\u{2019}t Scrobble This Artist", action: #selector(ignoreCurrentArtist), keyEquivalent: "")
+    private let ignoredListItem = NSMenuItem(title: "Ignored Artists", action: nil, keyEquivalent: "")
+    private let ignoredMenu = NSMenu()
     private let pauseItem = NSMenuItem(title: "Pause Scrobbling", action: #selector(togglePause), keyEquivalent: "")
     private let startupItem = NSMenuItem(title: "Start at Login", action: #selector(toggleStartup), keyEquivalent: "")
     private let discordItem = NSMenuItem(title: "Show \u{201C}Listening to\u{201D} on Discord", action: #selector(toggleDiscord), keyEquivalent: "")
@@ -88,7 +91,8 @@ final class MenuBarApp: NSObject, NSMenuDelegate {
 
     private func tick() {
         scrobbler.update(reader.snapshot())
-        discord.update(scrobbler.current) // same (cleaned) track info as Last.fm gets
+        // Same (cleaned) track info as Last.fm gets; nothing for ignored artists.
+        discord.update(scrobbler.currentIsIgnored ? nil : scrobbler.current)
         updateUi()
     }
 
@@ -113,6 +117,9 @@ final class MenuBarApp: NSObject, NSMenuDelegate {
 
         let options = NSMenu()
         for item in [startupItem, discordItem, cleanItem, mainArtistItem, checkUpdatesItem] { options.addItem(item) }
+        ignoredMenu.autoenablesItems = false
+        ignoredListItem.submenu = ignoredMenu
+        options.addItem(ignoredListItem)
         options.addItem(.separator())
         options.addItem(withTitle: "Switch Last.fm Account\u{2026}", action: #selector(reconnect), keyEquivalent: "")
         options.addItem(withTitle: "Open Log", action: #selector(openLog), keyEquivalent: "")
@@ -131,6 +138,7 @@ final class MenuBarApp: NSObject, NSMenuDelegate {
         menu.addItem(updateItem)
         menu.addItem(musicAccessItem)
         menu.addItem(loveItem)
+        menu.addItem(ignoreItem)
         menu.addItem(pauseItem)
         menu.addItem(withTitle: "Open My Last.fm Profile", action: #selector(openProfile), keyEquivalent: "")
         menu.addItem(optionsItem)
@@ -147,7 +155,43 @@ final class MenuBarApp: NSObject, NSMenuDelegate {
     func menuNeedsUpdate(_ menu: NSMenu) {
         startupItem.state = Startup.isEnabled ? .on : .off
         buildRecentMenu()
+        buildIgnoredMenu()
         updateUi()
+    }
+
+    /// Ignored artists; clicking one scrobbles it again.
+    private func buildIgnoredMenu() {
+        ignoredMenu.removeAllItems()
+        let artists = settings.ignoredArtists
+        let hint = NSMenuItem(title: artists.isEmpty ? "No ignored artists. Use \u{201C}Don\u{2019}t Scrobble\u{201D} while one plays." : "Not sent to Last.fm or shown on Discord. Click to undo:",
+                              action: nil, keyEquivalent: "")
+        hint.isEnabled = false
+        ignoredMenu.addItem(hint)
+        for artist in artists {
+            let item = NSMenuItem(title: Self.menuText(artist), action: #selector(unignoreArtist(_:)), keyEquivalent: "")
+            item.target = self
+            item.representedObject = artist
+            ignoredMenu.addItem(item)
+        }
+    }
+
+    @objc private func ignoreCurrentArtist() {
+        guard let np = scrobbler.current, np.isValid else { return }
+        if scrobbler.currentIsIgnored {
+            settings.ignoredArtists = settings.ignoredArtists.filter { !IgnoreList.isIgnored(np.artist, in: [$0]) }
+            Log.write("Scrobbling \(np.artist) again")
+        } else {
+            settings.ignoredArtists = IgnoreList.adding(np.artist, to: settings.ignoredArtists)
+            Log.write("Ignoring \(np.artist): not scrobbled or shown on Discord")
+        }
+        tick()
+    }
+
+    @objc private func unignoreArtist(_ sender: NSMenuItem) {
+        guard let artist = sender.representedObject as? String else { return }
+        settings.ignoredArtists = IgnoreList.removing(artist, from: settings.ignoredArtists)
+        Log.write("Scrobbling \(artist) again")
+        tick()
     }
 
     /// Latest scrobbles (click one to open it on Last.fm), anything waiting to be sent, and Send Now.
@@ -208,11 +252,16 @@ final class MenuBarApp: NSObject, NSMenuDelegate {
 
     private func updateUi() {
         let np = scrobbler.current
-        let playing = np.map { $0.isValid ? $0.description + ($0.isPlaying ? "" : " (paused)") : nil } ?? nil
+        let ignored = scrobbler.currentIsIgnored
+        let playing = np.map { $0.isValid ? $0.description + ($0.isPlaying ? "" : " (paused)") + (ignored ? " (not scrobbled)" : "") : nil } ?? nil
         setTitle(nowItem, Self.menuText(playing ?? "Nothing playing"))
         setTitle(lastItem, scrobbler.lastScrobbled.isEmpty ? "Nothing scrobbled yet" : Self.menuText("Last scrobbled: " + scrobbler.lastScrobbled))
         setTitle(recentItem, scrobbler.pending > 0 ? "Recent Scrobbles (\(scrobbler.pending) Waiting)" : "Recent Scrobbles")
         loveItem.isEnabled = np?.isValid == true && !dryRun
+        ignoreItem.isEnabled = np?.isValid == true
+        setTitle(ignoreItem, np?.isValid == true
+            ? Self.menuText((ignored ? "Scrobble " : "Don\u{2019}t Scrobble ") + (np?.artist ?? "") + (ignored ? " Again" : ""))
+            : "Don\u{2019}t Scrobble This Artist")
         pauseItem.state = settings.paused ? .on : .off
         discordItem.state = settings.showOnDiscord ? .on : .off
         setTitle(discordItem, "Show \u{201C}Listening to\u{201D} on Discord" + (settings.showOnDiscord && !discord.isConnected ? " (Waiting for Discord)" : ""))

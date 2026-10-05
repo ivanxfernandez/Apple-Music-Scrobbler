@@ -146,7 +146,7 @@ namespace AppleMusicScrobbler.Discord
         static bool Similar(string x, string y) => x.Length > 0 && y.Length > 0 && (x.Contains(y) || y.Contains(x));
 
         /// <summary>Lowercase letters and digits only (accents removed), so punctuation/casing differences don't matter.</summary>
-        static string Normalize(string s)
+        internal static string Normalize(string s)
         {
             if (string.IsNullOrEmpty(s)) return "";
             var sb = new StringBuilder();

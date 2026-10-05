@@ -40,6 +40,8 @@ namespace AppleMusicScrobbler
         public NowPlaying Current { get; private set; }
         public string LastScrobbled => _settings.LastScrobbled;
         public int Pending => _queue.Count;
+        /// <summary>The current song's artist is on the ignore list: nothing is sent for it.</summary>
+        public bool CurrentIsIgnored => Current != null && Current.IsValid && IgnoreList.IsIgnored(Current.Artist, _settings.IgnoredArtists);
         /// <summary>Scrobbles waiting to be sent (offline, or Last.fm busy), oldest first.</summary>
         public IReadOnlyList<QueuedScrobble> PendingScrobbles => _queue;
         /// <summary>Latest scrobbles Last.fm accepted, newest first.</summary>
@@ -70,7 +72,11 @@ namespace AppleMusicScrobbler
             Current = np;
 
             var events = _tracker.Update(np, elapsed, DateTimeOffset.UtcNow.ToUnixTimeSeconds());
-            if (!_settings.Paused && np != null)
+            if (!_settings.Paused && np != null && IgnoreList.IsIgnored(np.Artist, _settings.IgnoredArtists))
+            {
+                if (events.NowPlaying) Log.Write($"Not scrobbling {np} (artist is on the ignore list)");
+            }
+            else if (!_settings.Paused && np != null)
             {
                 // Only what's sent changes; the tracker and Discord keep the full credit.
                 var output = np;

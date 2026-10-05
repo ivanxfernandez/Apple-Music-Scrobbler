@@ -63,6 +63,12 @@ public final class Settings {
         set { defaults.set(newValue, forKey: "LastScrobbled") }
     }
 
+    /// Artists not to scrobble or show on Discord (see IgnoreList).
+    public var ignoredArtists: [String] {
+        get { defaults.stringArray(forKey: "IgnoredArtists") ?? [] }
+        set { defaults.set(newValue, forKey: "IgnoredArtists") }
+    }
+
     /// Latest accepted scrobbles, newest first (see RecentScrobbles).
     public var recentScrobbles: [RecentScrobble] {
         get { (defaults.data(forKey: "RecentScrobbles")).flatMap { try? JSONDecoder().decode([RecentScrobble].self, from: $0) } ?? [] }

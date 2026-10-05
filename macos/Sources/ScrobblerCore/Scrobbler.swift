@@ -21,6 +21,11 @@ public final class Scrobbler {
     public private(set) var current: NowPlaying?
     public var lastScrobbled: String { settings.lastScrobbled }
     public var pending: Int { queue.count }
+    /// The current song's artist is on the ignore list: nothing is sent for it.
+    public var currentIsIgnored: Bool {
+        guard let current, current.isValid else { return false }
+        return IgnoreList.isIgnored(current.artist, in: settings.ignoredArtists)
+    }
     /// Scrobbles waiting to be sent (offline, or Last.fm busy), oldest first.
     public var pendingScrobbles: [QueuedScrobble] { queue }
     /// Latest scrobbles Last.fm accepted, newest first.
@@ -48,7 +53,9 @@ public final class Scrobbler {
         current = np
 
         let events = tracker.update(np, elapsedSeconds: elapsed, unixNow: Int64(now.timeIntervalSince1970))
-        if !settings.paused, var np {
+        if !settings.paused, let np, IgnoreList.isIgnored(np.artist, in: settings.ignoredArtists) {
+            if events.nowPlaying { Log.write("Not scrobbling \(np) (artist is on the ignore list)") }
+        } else if !settings.paused, var np {
             // Only what's sent changes; the tracker and Discord keep the full credit.
             if settings.mainArtistOnly && np.isValid { np.artist = mainArtist.resolve(np.artist) }
             if events.nowPlaying { sendNowPlaying(np) }
