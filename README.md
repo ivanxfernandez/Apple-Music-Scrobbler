@@ -84,6 +84,7 @@ On Windows the app lives in the system tray as a red note icon (you may need to 
 | Options › Show "Listening to" on Discord | Shows the current song on your Discord profile while the Discord app is running (on by default; hidden while paused) |
 | Options › Clean up titles | Removes "Remaster", "Deluxe Edition", "- Single" and similar from names (on by default) |
 | Options › Scrobble only the main artist of collaborations | Scrobbles *"Joji & BENEE"* as *"Joji"*, so collaborations count toward the main artist (off by default). Bands like *Simon & Garfunkel* or *Earth, Wind & Fire* are left alone: the app compares Last.fm's listener counts for the full name and the first artist, and only a collaboration's combined name has a tiny share of the first artist's listeners |
+| Options › Catch Up on Plays from Other Devices *(Mac)* | Scrobbles songs you played on your iPhone or iPad. Music records the latest play of each library song and syncs it to the Mac through iCloud (within seconds); every 15 minutes the app looks for plays it didn't see itself and that aren't on Last.fm yet, and scrobbles them with the time you played them. Only songs in your library, only the latest play of each, and the Mac has to be on. Off by default. If you use **Scan** in the Last.fm iPhone app, use one or the other |
 | Options › Ignored artists | The ignore list; click an artist to scrobble them again |
 | Options › Check for updates automatically | Checks GitHub once a day (on by default) |
 | Options › Switch Last.fm account... | Reconnects, or connects a different account |

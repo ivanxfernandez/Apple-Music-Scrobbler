@@ -65,6 +65,21 @@ public final class Scrobbler {
         if !queue.isEmpty && !sending && now >= nextSend { sendQueue() }
     }
 
+    /// Queues a play found by CatchUp, with the same title cleanup, main-artist and ignore rules as
+    /// live plays. Returns false if it was ignored.
+    @discardableResult
+    public func enqueueMissedPlay(_ play: CatchUp.Play) -> Bool {
+        var np = NowPlaying(artist: play.artist, title: play.title, album: play.album, duration: play.duration, isPlaying: true)
+        if IgnoreList.isIgnored(np.artist, in: settings.ignoredArtists) { return false }
+        if settings.cleanTitles { np = TitleCleaner.apply(np) ?? np }
+        if settings.mainArtistOnly { np.artist = mainArtist.resolve(np.artist) }
+        queue.append(QueuedScrobble(artist: np.artist, track: np.title, album: np.album, duration: np.duration,
+                                    timestamp: Int64(play.started.timeIntervalSince1970)))
+        saveQueue()
+        nextSend = .distantPast
+        return true
+    }
+
     /// Try sending queued scrobbles on the next update (e.g. after reconnecting, or "Send Now").
     public func retrySoon() { nextSend = .distantPast }
 

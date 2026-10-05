@@ -85,6 +85,28 @@ public final class LastFmClient {
         throw LastFmError(code: code, message: root.elements(forName: "error").first?.stringValue ?? "Unknown Last.fm error")
     }
 
+    /// The user's scrobbles between two times (newest first, at most `maxPages` × 200).
+    public func recentTracks(user: String, from: Date, to: Date, maxPages: Int = 5) async throws -> [CatchUp.Scrobbled] {
+        var result: [CatchUp.Scrobbled] = []
+        for page in 1...maxPages {
+            let url = URL(string: "\(Self.apiUrl.absoluteString)?method=user.getRecentTracks&limit=200&page=\(page)&user=\(Http.escape(user))"
+                + "&from=\(Int(from.timeIntervalSince1970))&to=\(Int(to.timeIntervalSince1970))&api_key=\(Http.escape(settings.effectiveApiKey))")!
+            let (body, response) = try await Http.session.data(from: url)
+            let status = (response as? HTTPURLResponse)?.statusCode ?? 0
+            guard let root = (try? XMLDocument(data: body))?.rootElement(), root.attribute(forName: "status")?.stringValue == "ok" else {
+                throw LastFmError(code: 0, message: "Couldn't read your Last.fm history (HTTP \(status))")
+            }
+            let tracks = (try? root.nodes(forXPath: "recenttracks/track")) as? [XMLElement] ?? []
+            for track in tracks {
+                guard let uts = Double(((try? track.nodes(forXPath: "date/@uts").first?.stringValue) ?? nil) ?? "") else { continue } // now playing
+                result.append(CatchUp.Scrobbled(artist: text(track, "artist"), title: text(track, "name"), time: Date(timeIntervalSince1970: uts)))
+            }
+            let pages = Int(((try? root.nodes(forXPath: "recenttracks/@totalPages").first?.stringValue) ?? nil) ?? "") ?? 1
+            if page >= pages { break }
+        }
+        return result
+    }
+
     /// Sends up to 50 scrobbles. Returns a description of each one Last.fm accepted but ignored.
     public func scrobble(_ batch: [QueuedScrobble]) async throws -> [String] {
         var args: [String: String] = [:]

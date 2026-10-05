@@ -234,3 +234,44 @@ final class MusicReader {
         return .failure(ScriptError(code: (error?[NSAppleScript.errorNumber] as? Int) ?? -1))
     }
 }
+
+extension MusicReader {
+    /// Library songs whose latest play ended after `since` (Music's "played date"), including plays
+    /// on other devices synced through iCloud. Needs Music access; nil if Music isn't running or it failed.
+    func recentLibraryPlays(since: Date) async -> [CatchUp.Play]? {
+        guard Self.musicIsRunning, access == .granted else { return nil }
+        let seconds = max(0, Int(Date().timeIntervalSince(since)))
+        return await withCheckedContinuation { continuation in
+            DispatchQueue.global(qos: .utility).async {
+                let source = """
+                    with timeout of 30 seconds
+                    tell application id "\(Self.musicBundleId)"
+                    set r to a reference to (every track of library playlist 1 whose played date > ((current date) - \(seconds)))
+                    if (count of r) is 0 then return {}
+                    return {name of r, artist of r, album of r, duration of r, played date of r}
+                    end tell
+                    end timeout
+                    """
+                var error: NSDictionary?
+                guard Self.musicIsRunning, let result = NSAppleScript(source: source)?.executeAndReturnError(&error), error == nil else {
+                    if let error { Log.write("Couldn't read Music's play history: \(error[NSAppleScript.errorMessage] ?? error)") }
+                    continuation.resume(returning: nil)
+                    return
+                }
+                guard result.numberOfItems == 5, let names = result.atIndex(1), let artists = result.atIndex(2), let albums = result.atIndex(3),
+                      let durations = result.atIndex(4), let dates = result.atIndex(5) else {
+                    continuation.resume(returning: [])
+                    return
+                }
+                var plays: [CatchUp.Play] = []
+                for i in stride(from: 1, through: names.numberOfItems, by: 1) {
+                    guard let date = dates.atIndex(i)?.dateValue else { continue }
+                    plays.append(CatchUp.Play(artist: artists.atIndex(i)?.stringValue ?? "", title: names.atIndex(i)?.stringValue ?? "",
+                                              album: albums.atIndex(i)?.stringValue ?? "", duration: Int((durations.atIndex(i)?.doubleValue ?? 0).rounded()),
+                                              playedDate: date))
+                }
+                continuation.resume(returning: plays)
+            }
+        }
+    }
+}

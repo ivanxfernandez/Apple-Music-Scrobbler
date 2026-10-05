@@ -12,7 +12,7 @@ public final class Settings {
         self.defaults = defaults
         secretsURL = folder.appendingPathComponent("secrets.json")
         secrets = (try? JSONDecoder().decode([String: String].self, from: Data(contentsOf: secretsURL))) ?? [:]
-        defaults.register(defaults: ["CheckForUpdates": true, "CleanTitles": true, "ShowOnDiscord": true, "MainArtistOnly": false])
+        defaults.register(defaults: ["CheckForUpdates": true, "CleanTitles": true, "ShowOnDiscord": true, "MainArtistOnly": false, "CatchUp": false])
     }
 
     /// User-supplied API key; empty means use the one built into the app.
@@ -61,6 +61,17 @@ public final class Settings {
     public var lastScrobbled: String {
         get { defaults.string(forKey: "LastScrobbled") ?? "" }
         set { defaults.set(newValue, forKey: "LastScrobbled") }
+    }
+
+    /// Scrobble plays from other devices found in Music's history (Mac, see CatchUp).
+    public var catchUp: Bool {
+        get { defaults.bool(forKey: "CatchUp") }
+        set { defaults.set(newValue, forKey: "CatchUp") }
+    }
+    /// Plays before this aren't caught up (set to a day before the option was turned on).
+    public var catchUpSince: Date {
+        get { defaults.object(forKey: "CatchUpSince") as? Date ?? Date() }
+        set { defaults.set(newValue, forKey: "CatchUpSince") }
     }
 
     /// Artists not to scrobble or show on Discord (see IgnoreList).

@@ -31,9 +31,20 @@ final class MenuBarApp: NSObject, NSMenuDelegate {
     private let discordItem = NSMenuItem(title: "Show \u{201C}Listening to\u{201D} on Discord", action: #selector(toggleDiscord), keyEquivalent: "")
     private let cleanItem = NSMenuItem(title: "Clean Up Titles (Remove \u{201C}Remaster\u{201D}, \u{201C}- Single\u{201D}\u{2026})", action: #selector(toggleClean), keyEquivalent: "")
     private let mainArtistItem = NSMenuItem(title: "Scrobble Only the Main Artist of Collaborations", action: #selector(toggleMainArtist), keyEquivalent: "")
+    private let catchUpItem = NSMenuItem(title: "Catch Up on Plays from Other Devices", action: #selector(toggleCatchUp), keyEquivalent: "")
     private let checkUpdatesItem = NSMenuItem(title: "Check for Updates Automatically", action: #selector(toggleUpdateChecks), keyEquivalent: "")
 
     private var timer: Timer?
+    private var catchUpTimer: Timer?
+    private var catchingUp = false
+    private var sightings: [CatchUp.Sighting] = []
+    private var sentByCatchUp: [CatchUp.Sighting] = []
+    private var lastSightingsSave = Date.distantPast
+    private static let catchUpFile = AppInfo.dataFolder.appendingPathComponent("catchup.json")
+    private struct CatchUpState: Codable {
+        var sightings: [CatchUp.Sighting]
+        var sent: [CatchUp.Sighting]
+    }
     private var updateTimer: Timer?
     private var update: ReleaseInfo?
     private var authWarningShown = false
@@ -56,6 +67,24 @@ final class MenuBarApp: NSObject, NSMenuDelegate {
             MainActor.assumeIsolated { self?.tick() }
         }
         timer?.tolerance = 0.1
+
+        // Catch-up: 2 minutes after starting, then every 15 minutes (it checks the setting each time).
+        if let data = try? Data(contentsOf: Self.catchUpFile), let state = try? JSONDecoder().decode(CatchUpState.self, from: data) {
+            sightings = state.sightings
+            sentByCatchUp = state.sent
+        }
+        catchUpTimer = Timer.scheduledTimer(withTimeInterval: 120, repeats: false) { [weak self] _ in
+            MainActor.assumeIsolated {
+                guard let self else { return }
+                Task { await self.catchUp() }
+                self.catchUpTimer = Timer.scheduledTimer(withTimeInterval: 15 * 60, repeats: true) { [weak self] _ in
+                    MainActor.assumeIsolated {
+                        guard let self else { return }
+                        Task { await self.catchUp() }
+                    }
+                }
+            }
+        }
 
         // First update check a minute after starting (right away when testing the updater), then daily.
         if !AppInfo.gitHubRepo.isEmpty {
@@ -83,14 +112,22 @@ final class MenuBarApp: NSObject, NSMenuDelegate {
     }
 
     func stop() {
+        saveCatchUpState()
         timer?.invalidate()
+        catchUpTimer?.invalidate()
         updateTimer?.invalidate()
         discord.shutDown()
         Log.write("Stopped")
     }
 
     private func tick() {
-        scrobbler.update(reader.snapshot())
+        let snapshot = reader.snapshot()
+        scrobbler.update(snapshot)
+        // Remember what played here, so catch-up never sends a play this app already handled.
+        if let np = snapshot, np.isValid, np.isPlaying {
+            sightings = CatchUp.recording(CatchUp.key(np.artist, np.title), at: Date(), in: sightings)
+            if Date().timeIntervalSince(lastSightingsSave) > 60 { saveCatchUpState() }
+        }
         // Same (cleaned) track info as Last.fm gets; nothing for ignored artists.
         discord.update(scrobbler.currentIsIgnored ? nil : scrobbler.current)
         updateUi()
@@ -108,6 +145,7 @@ final class MenuBarApp: NSObject, NSMenuDelegate {
 
         nowItem.isEnabled = false
         mainArtistItem.toolTip = "\u{201C}Joji & BENEE\u{201D} is scrobbled as \u{201C}Joji\u{201D}. Bands like \u{201C}Simon & Garfunkel\u{201D} are left alone (Last.fm's listener counts tell them apart)."
+        catchUpItem.toolTip = "Scrobbles songs from your library that you played on your iPhone or iPad, from Music's play history (synced through iCloud)."
         cleanItem.toolTip = "\u{201C}Song [2022 Remaster]\u{201D} is scrobbled as \u{201C}Song\u{201D}, \u{201C}Album (Deluxe Edition)\u{201D} as \u{201C}Album\u{201D}"
         lastItem.isEnabled = false
         updateItem.isHidden = true
@@ -116,7 +154,7 @@ final class MenuBarApp: NSObject, NSMenuDelegate {
         discordItem.isHidden = !DiscordPresence.available
 
         let options = NSMenu()
-        for item in [startupItem, discordItem, cleanItem, mainArtistItem, checkUpdatesItem] { options.addItem(item) }
+        for item in [startupItem, discordItem, cleanItem, mainArtistItem, catchUpItem, checkUpdatesItem] { options.addItem(item) }
         ignoredMenu.autoenablesItems = false
         ignoredListItem.submenu = ignoredMenu
         options.addItem(ignoredListItem)
@@ -267,6 +305,7 @@ final class MenuBarApp: NSObject, NSMenuDelegate {
         setTitle(discordItem, "Show \u{201C}Listening to\u{201D} on Discord" + (settings.showOnDiscord && !discord.isConnected ? " (Waiting for Discord)" : ""))
         cleanItem.state = settings.cleanTitles ? .on : .off
         mainArtistItem.state = settings.mainArtistOnly ? .on : .off
+        catchUpItem.state = settings.catchUp ? .on : .off
         checkUpdatesItem.state = settings.checkForUpdates ? .on : .off
         musicAccessItem.isHidden = reader.access == .granted || reader.access == .unknown
         setTitle(musicAccessItem, reader.access == .denied ? "Music Access Is Off (Repeats May Be Missed)\u{2026}" : "Allow Access to Music\u{2026}")
@@ -379,6 +418,71 @@ final class MenuBarApp: NSObject, NSMenuDelegate {
         settings.mainArtistOnly.toggle()
         Log.write(settings.mainArtistOnly ? "Scrobbling only the main artist of collaborations" : "Scrobbling full artist credits")
         updateUi()
+    }
+
+    @objc private func toggleCatchUp() {
+        if settings.catchUp {
+            settings.catchUp = false
+            Log.write("Catch-up turned off")
+            updateUi()
+            return
+        }
+        let alert = NSAlert()
+        alert.messageText = "Catch up on plays from other devices?"
+        alert.informativeText = "Songs you play on your iPhone or iPad are recorded in your Music library and synced to this Mac through iCloud. "
+            + "Every 15 minutes the app looks for plays it didn't see here and that aren't on Last.fm yet, and scrobbles them "
+            + "with the time you played them. It starts with the last 24 hours.\n\n"
+            + "\u{2022} Only songs in your library count, and only the latest play of each song.\n"
+            + "\u{2022} It needs access to Music, and your Mac has to be on.\n"
+            + "\u{2022} If you use Scan in the Last.fm iPhone app, use one or the other: the same plays could be sent twice."
+        alert.addButton(withTitle: "Turn On")
+        alert.addButton(withTitle: "Cancel")
+        NSApp.activate(ignoringOtherApps: true)
+        guard alert.runModal() == .alertFirstButtonReturn else { return }
+        settings.catchUp = true
+        settings.catchUpSince = Date().addingTimeInterval(-24 * 3600)
+        Log.write("Catch-up turned on (from the last 24 hours)")
+        updateUi()
+        Task {
+            if reader.access != .granted { _ = await reader.requestAccess() }
+            await catchUp()
+        }
+    }
+
+    /// Finds plays from other devices in Music's history and queues the ones Last.fm doesn't have.
+    private func catchUp() async {
+        guard settings.catchUp, !settings.paused, !catchingUp, reader.access == .granted, !settings.username.isEmpty else { return }
+        catchingUp = true
+        defer { catchingUp = false }
+        let now = Date()
+        let since = max(settings.catchUpSince, now.addingTimeInterval(-CatchUp.maxAge))
+        guard let plays = await reader.recentLibraryPlays(since: since) else { return }
+        let candidates = CatchUp.missedPlays(plays, since: since, now: now, sightings: sightings, onLastFm: [], alreadySent: sentByCatchUp)
+        guard let earliest = candidates.map(\.started).min() else { return }
+        do {
+            let onLastFm = try await api.recentTracks(user: settings.username, from: earliest.addingTimeInterval(-3600), to: now)
+            let missed = CatchUp.missedPlays(plays, since: since, now: now, sightings: sightings, onLastFm: onLastFm, alreadySent: sentByCatchUp)
+            let formatter = DateFormatter()
+            formatter.dateStyle = .short
+            formatter.timeStyle = .short
+            for play in missed {
+                let queued = !dryRun && scrobbler.enqueueMissedPlay(play)
+                let what = dryRun ? "[dry run] Would catch up: " : queued ? "Caught up: " : "Not catching up (ignored artist): "
+                Log.write(what + "\(play.artist) - \(play.title), played \(formatter.string(from: play.started)) on another device")
+                if !dryRun { sentByCatchUp.append(CatchUp.Sighting(key: play.key, first: play.playedDate, last: play.playedDate)) }
+            }
+            sentByCatchUp = sentByCatchUp.filter { now.timeIntervalSince($0.last) < 14 * 24 * 3600 }
+            saveCatchUpState()
+        } catch {
+            Log.write("Catch-up skipped, couldn't read your Last.fm history: \(error.localizedDescriptionIfUseful)")
+        }
+    }
+
+    private func saveCatchUpState() {
+        lastSightingsSave = Date()
+        guard !dryRun, let data = try? JSONEncoder().encode(CatchUpState(sightings: sightings, sent: sentByCatchUp)) else { return }
+        try? FileManager.default.createDirectory(at: AppInfo.dataFolder, withIntermediateDirectories: true)
+        try? data.write(to: Self.catchUpFile, options: .atomic)
     }
 
     @objc private func toggleUpdateChecks() {
