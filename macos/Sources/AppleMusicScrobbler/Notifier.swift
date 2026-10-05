@@ -19,7 +19,8 @@ final class Notifier: NSObject, UNUserNotificationCenterDelegate {
     /// Called when the user clicks a notification shown with an `action`.
     var onAction: ((String) -> Void)?
 
-    func show(_ title: String, _ body: String, url: URL? = nil, action: String? = nil) {
+    /// `image`: a local image file shown in the notification (macOS takes ownership of the file).
+    func show(_ title: String, _ body: String, url: URL? = nil, action: String? = nil, image: URL? = nil) {
         guard let center else {
             Log.write("[notification] \(title): \(body)")
             return
@@ -31,6 +32,7 @@ final class Notifier: NSObject, UNUserNotificationCenterDelegate {
             content.body = body
             if let url { content.userInfo["url"] = url.absoluteString }
             if let action { content.userInfo["action"] = action }
+            if let image, let attachment = try? UNNotificationAttachment(identifier: "art", url: image) { content.attachments = [attachment] }
             center.add(UNNotificationRequest(identifier: UUID().uuidString, content: content, trigger: nil))
         }
     }

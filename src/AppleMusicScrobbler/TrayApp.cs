@@ -26,7 +26,11 @@ namespace AppleMusicScrobbler
         readonly Timer _updateTimer;
         readonly Icon _iconActive, _iconPaused;
         readonly ToolStripMenuItem _nowItem, _lastItem, _recentItem, _updateItem, _loveItem, _ignoreItem, _ignoredListItem, _pauseItem;
-        readonly ToolStripMenuItem _startupItem, _checkUpdatesItem, _discordItem;
+        readonly ToolStripMenuItem _startupItem, _checkUpdatesItem, _discordItem, _loveShortcutItem, _nowPlayingNotificationItem;
+        HotKey _loveHotKey;
+        /// <summary>Whether songs (artist + title as sent to Last.fm) are loved there; filled in as songs play.</summary>
+        readonly System.Collections.Generic.Dictionary<string, bool> _loved = new System.Collections.Generic.Dictionary<string, bool>();
+        readonly System.Collections.Generic.HashSet<string> _lovedPending = new System.Collections.Generic.HashSet<string>();
 
         bool _busy;
         bool _authWarningShown;
@@ -42,6 +46,7 @@ namespace AppleMusicScrobbler
             _api = new LastFmClient(settings);
             _scrobbler = new Scrobbler(settings, _api, Program.DryRun);
             _scrobbler.AuthProblem += OnAuthProblem;
+            _scrobbler.NowPlayingStarted += ShowNowPlaying;
             _discord = new DiscordPresence(settings);
 
             int iconSize = SystemInformation.SmallIconSize.Width;
@@ -55,7 +60,22 @@ namespace AppleMusicScrobbler
             _recentItem.DropDownOpening += (s, e) => BuildRecentMenu();
             _updateItem = new ToolStripMenuItem(L("Update available"), null, (s, e) => OfferUpdate()) { Visible = false };
             _updateItem.Font = new Font(_updateItem.Font, FontStyle.Bold);
-            _loveItem = new ToolStripMenuItem(L("♥ Love this song on Last.fm"), null, async (s, e) => await LoveCurrentAsync());
+            _loveItem = new ToolStripMenuItem(L("♥ Love this song on Last.fm"), null, async (s, e) => await SetLovedAsync(LovedState() != true))
+            {
+                ShortcutKeyDisplayString = HotKey.LoveDescription,
+            };
+            _loveShortcutItem = new ToolStripMenuItem(L("♥ Keyboard shortcut ({0})", HotKey.LoveDescription), null, (s, e) =>
+            {
+                _settings.LoveShortcut = !_settings.LoveShortcut;
+                SaveSettings();
+                UpdateLoveShortcut();
+            });
+            _nowPlayingNotificationItem = new ToolStripMenuItem(L("Show a notification when a song starts"), null, (s, e) =>
+            {
+                _settings.NowPlayingNotification = !_settings.NowPlayingNotification;
+                _nowPlayingNotificationItem.Checked = _settings.NowPlayingNotification;
+                SaveSettings();
+            }) { Checked = settings.NowPlayingNotification };
             _ignoreItem = new ToolStripMenuItem(L("Don't scrobble this artist"), null, (s, e) => ToggleIgnoreCurrent());
             _ignoredListItem = new ToolStripMenuItem(L("Ignored artists"));
             _ignoredListItem.DropDownItems.Add("No ignored artists"); // placeholder so the arrow shows; filled when opened
@@ -101,6 +121,8 @@ namespace AppleMusicScrobbler
             {
                 _startupItem,
                 _discordItem,
+                _nowPlayingNotificationItem,
+                _loveShortcutItem,
                 cleanItem,
                 mainArtistItem,
                 _checkUpdatesItem,
@@ -149,6 +171,8 @@ namespace AppleMusicScrobbler
                 else if (_balloonUrl != null) AppInfo.OpenUrl(_balloonUrl);
             };
             _tray.BalloonTipClosed += (s, e) => { _balloonUrl = null; _balloonInstallsUpdate = false; };
+
+            UpdateLoveShortcut();
 
             _timer = new Timer { Interval = 1000 };
             _timer.Tick += OnTick;
@@ -231,6 +255,8 @@ namespace AppleMusicScrobbler
             SetText(_lastItem, string.IsNullOrEmpty(_scrobbler.LastScrobbled) ? L("Nothing scrobbled yet") : MenuText(L("Last scrobbled: {0}", _scrobbler.LastScrobbled)));
             SetText(_recentItem, _scrobbler.Pending > 0 ? L("Recent scrobbles ({0} waiting)", _scrobbler.Pending) : L("Recent scrobbles"));
             _loveItem.Enabled = np != null && np.IsValid && !Program.DryRun;
+            _loveItem.Checked = LovedState() == true;
+            _loveItem.ShortcutKeyDisplayString = _loveHotKey != null ? HotKey.LoveDescription : null;
             _ignoreItem.Enabled = np != null && np.IsValid;
             SetText(_ignoreItem, np != null && np.IsValid
                 ? MenuText(ignored ? L("Scrobble {0} again", np.Artist) : L("Don't scrobble {0}", np.Artist))
@@ -338,21 +364,82 @@ namespace AppleMusicScrobbler
             _tray.ShowBalloonTip(10000, title, text, icon);
         }
 
-        async Task LoveCurrentAsync()
+        /// <summary>Whether the current song is loved on Last.fm; null while unknown (starts the lookup).</summary>
+        bool? LovedState()
         {
-            var np = _scrobbler.Current;
-            if (np == null || !np.IsValid) return;
+            var np = _scrobbler.CurrentAsSent;
+            if (np == null || Program.DryRun || string.IsNullOrEmpty(_settings.Username)) return null;
+            string key = np.Artist + "\n" + np.Title;
+            if (_loved.TryGetValue(key, out bool known)) return known;
+            if (_lovedPending.Add(key)) _ = LookUpLovedAsync(np, key);
+            return null;
+        }
+
+        async Task LookUpLovedAsync(NowPlaying np, string key)
+        {
             try
             {
-                await _api.LoveAsync(np.Artist, np.Title);
-                Log.Write("Loved: " + np);
-                ShowBalloon(L("♥ Loved on Last.fm"), np.ToString(), ToolTipIcon.None);
+                bool isLoved = await _api.IsLovedAsync(np.Artist, np.Title, _settings.Username);
+                if (_loved.Count > 500) _loved.Clear();
+                _loved[key] = isLoved;
+            }
+            catch
+            {
+                // Unknown: the item just shows without a check mark.
+            }
+            _lovedPending.Remove(key);
+            UpdateUi();
+        }
+
+        /// <summary>The menu item loves the song, or un-loves it if it's already loved (shown checked).</summary>
+        async Task SetLovedAsync(bool love)
+        {
+            var np = _scrobbler.CurrentAsSent;
+            if (np == null) return;
+            string key = np.Artist + "\n" + np.Title;
+            try
+            {
+                if (love) await _api.LoveAsync(np.Artist, np.Title);
+                else await _api.UnloveAsync(np.Artist, np.Title);
+                _loved[key] = love;
+                Log.Write((love ? "Loved: " : "Unloved: ") + np);
+                ShowBalloon(love ? L("♥ Loved on Last.fm") : L("Removed from your loved tracks"), np.ToString(), ToolTipIcon.None);
+                UpdateUi();
             }
             catch (Exception ex)
             {
-                Log.Write("Love failed: " + ex.Message);
-                ShowBalloon(L("Couldn't love this song"), ex.Message, ToolTipIcon.Warning);
+                Log.Write((love ? "Love" : "Unlove") + " failed: " + ex.Message);
+                ShowBalloon(love ? L("Couldn't love this song") : L("Couldn't remove the love"), ex.Message, ToolTipIcon.Warning);
             }
+        }
+
+        /// <summary>The keyboard shortcut only loves; it never takes a love back.</summary>
+        void LoveFromShortcut()
+        {
+            var np = _scrobbler.CurrentAsSent;
+            if (np == null || Program.DryRun)
+                ShowBalloon(L("Nothing playing"), L("Play a song in Apple Music, then press {0} to love it.", HotKey.LoveDescription), ToolTipIcon.Info);
+            else if (LovedState() == true)
+                ShowBalloon(L("Already loved"), np.ToString(), ToolTipIcon.None);
+            else
+                _ = SetLovedAsync(true);
+        }
+
+        void UpdateLoveShortcut()
+        {
+            _loveHotKey?.Dispose();
+            _loveHotKey = _settings.LoveShortcut ? HotKey.Love(LoveFromShortcut) : null;
+            if (_settings.LoveShortcut && _loveHotKey == null)
+                Log.Write($"The love shortcut {HotKey.LoveDescription} is used by another app; turn it off in Options or quit that app");
+            _loveShortcutItem.Checked = _settings.LoveShortcut;
+            UpdateUi();
+        }
+
+        /// <summary>The optional "now playing" notification (text only: Windows notifications from a tray app can't show album art).</summary>
+        void ShowNowPlaying(NowPlaying np)
+        {
+            if (!_settings.NowPlayingNotification) return;
+            ShowBalloon(np.Title, np.Album.Length > 0 ? $"{np.Artist} — {np.Album}" : np.Artist, ToolTipIcon.None);
         }
 
         async Task CheckForUpdateAsync(bool manual)
@@ -513,6 +600,7 @@ namespace AppleMusicScrobbler
         protected override void ExitThreadCore()
         {
             _timer.Stop();
+            _loveHotKey?.Dispose();
             _updateTimer.Stop();
             _discord.Dispose();
             _tray.Visible = false;

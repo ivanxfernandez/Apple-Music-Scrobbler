@@ -71,6 +71,22 @@ public final class LastFmClient {
         _ = try await call("track.love", ["artist": artist, "track": title], withSession: true)
     }
 
+    public func unlove(artist: String, title: String) async throws {
+        _ = try await call("track.unlove", ["artist": artist, "track": title], withSession: true)
+    }
+
+    /// Whether the user has loved this track on Last.fm (exact name, no autocorrect); false if Last.fm doesn't know it.
+    public func isLoved(artist: String, title: String, user: String) async throws -> Bool {
+        let url = URL(string: "\(Self.apiUrl.absoluteString)?method=track.getInfo&autocorrect=0&artist=\(Http.escape(artist))&track=\(Http.escape(title))"
+            + "&username=\(Http.escape(user))&api_key=\(Http.escape(settings.effectiveApiKey))")!
+        let (body, _) = try await Http.session.data(from: url)
+        guard let root = (try? XMLDocument(data: body))?.rootElement() else { throw LastFmError(code: 0, message: "Unexpected response from Last.fm") }
+        if root.attribute(forName: "status")?.stringValue == "ok" { return text(root, "track/userloved") == "1" }
+        let code = Int(root.elements(forName: "error").first?.attribute(forName: "code")?.stringValue ?? "") ?? 0
+        if code == 6 { return false } // track not found
+        throw LastFmError(code: code, message: root.elements(forName: "error").first?.stringValue ?? "Unknown Last.fm error")
+    }
+
     /// How many people listen to an artist on Last.fm (exact name, no autocorrect); 0 if Last.fm doesn't know it.
     public func artistListeners(_ artist: String) async throws -> Int {
         let url = URL(string: "\(Self.apiUrl.absoluteString)?method=artist.getInfo&autocorrect=0&artist=\(Http.escape(artist))&api_key=\(Http.escape(settings.effectiveApiKey))")!

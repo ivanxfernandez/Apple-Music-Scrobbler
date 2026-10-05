@@ -33,6 +33,15 @@ public final class Scrobbler {
 
     /// Called when the Last.fm login stopped working.
     public var onAuthProblem: (() -> Void)?
+    /// Called when a song is announced as "now playing" (not while paused or for ignored artists).
+    public var onNowPlaying: ((NowPlaying) -> Void)?
+
+    /// The current song as it's sent to Last.fm: cleaned title and album, and the main artist if that option is on.
+    public var currentAsSent: NowPlaying? {
+        guard var np = current, np.isValid else { return nil }
+        if settings.mainArtistOnly { np.artist = mainArtist.resolve(np.artist) }
+        return np
+    }
 
     public init(settings: Settings, api: LastFmClient, dryRun: Bool, folder: URL = AppInfo.dataFolder) {
         self.settings = settings
@@ -58,7 +67,10 @@ public final class Scrobbler {
         } else if !settings.paused, var np {
             // Only what's sent changes; the tracker and Discord keep the full credit.
             if settings.mainArtistOnly && np.isValid { np.artist = mainArtist.resolve(np.artist) }
-            if events.nowPlaying { sendNowPlaying(np) }
+            if events.nowPlaying {
+                sendNowPlaying(np)
+                onNowPlaying?(np)
+            }
             if let startedAt = events.scrobbleAt { enqueue(np, startedAt: startedAt) }
         }
 

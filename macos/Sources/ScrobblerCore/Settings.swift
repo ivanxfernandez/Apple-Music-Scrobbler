@@ -12,7 +12,7 @@ public final class Settings {
         self.defaults = defaults
         secretsURL = folder.appendingPathComponent("secrets.json")
         secrets = (try? JSONDecoder().decode([String: String].self, from: Data(contentsOf: secretsURL))) ?? [:]
-        defaults.register(defaults: ["CheckForUpdates": true, "CleanTitles": true, "ShowOnDiscord": true, "MainArtistOnly": false, "CatchUp": false])
+        defaults.register(defaults: ["CheckForUpdates": true, "CleanTitles": true, "ShowOnDiscord": true, "MainArtistOnly": false, "CatchUp": false, "LoveShortcut": true, "NowPlayingNotification": false])
     }
 
     /// User-supplied API key; empty means use the one built into the app.
@@ -63,6 +63,16 @@ public final class Settings {
         set { defaults.set(newValue, forKey: "LastScrobbled") }
     }
 
+    /// The keyboard shortcut that loves the current song from anywhere (see HotKey).
+    public var loveShortcut: Bool {
+        get { defaults.bool(forKey: "LoveShortcut") }
+        set { defaults.set(newValue, forKey: "LoveShortcut") }
+    }
+    /// A notification with the song and album art when a song starts.
+    public var nowPlayingNotification: Bool {
+        get { defaults.bool(forKey: "NowPlayingNotification") }
+        set { defaults.set(newValue, forKey: "NowPlayingNotification") }
+    }
     /// Scrobble plays from other devices found in Music's history (Mac, see CatchUp).
     public var catchUp: Bool {
         get { defaults.bool(forKey: "CatchUp") }

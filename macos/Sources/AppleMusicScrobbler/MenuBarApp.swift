@@ -32,9 +32,16 @@ final class MenuBarApp: NSObject, NSMenuDelegate {
     private let cleanItem = NSMenuItem(title: L("Clean Up Titles (Remove \u{201C}Remaster\u{201D}, \u{201C}- Single\u{201D}\u{2026})"), action: #selector(toggleClean), keyEquivalent: "")
     private let mainArtistItem = NSMenuItem(title: L("Scrobble Only the Main Artist of Collaborations"), action: #selector(toggleMainArtist), keyEquivalent: "")
     private let catchUpItem = NSMenuItem(title: L("Catch Up on Plays from Other Devices"), action: #selector(toggleCatchUp), keyEquivalent: "")
+    private let loveShortcutItem = NSMenuItem(title: L("\u{2665} Keyboard Shortcut (%@)", HotKey.loveDescription), action: #selector(toggleLoveShortcut), keyEquivalent: "")
+    private let nowPlayingNotificationItem = NSMenuItem(title: L("Show a Notification When a Song Starts"), action: #selector(toggleNowPlayingNotification), keyEquivalent: "")
     private let checkUpdatesItem = NSMenuItem(title: L("Check for Updates Automatically"), action: #selector(toggleUpdateChecks), keyEquivalent: "")
 
     private var timer: Timer?
+    private var loveHotKey: HotKey?
+    /// Whether songs (artist + title as sent to Last.fm) are loved there; filled in as songs play.
+    private var loved: [String: Bool] = [:]
+    private var lovedPending: Set<String> = []
+    private let artwork = AppleMusicLinks()
     private var catchUpTimer: Timer?
     private var catchingUp = false
     private var sightings: [CatchUp.Sighting] = []
@@ -58,6 +65,7 @@ final class MenuBarApp: NSObject, NSMenuDelegate {
         discord = DiscordPresence(settings: settings)
         super.init()
         scrobbler.onAuthProblem = { [weak self] in self?.onAuthProblem() }
+        scrobbler.onNowPlaying = { [weak self] np in self?.showNowPlaying(np) }
         reader.onAccessChanged = { [weak self] in self?.updateUi() }
         buildMenu()
     }
@@ -96,6 +104,7 @@ final class MenuBarApp: NSObject, NSMenuDelegate {
         Log.write(dryRun
             ? "Started \(AppInfo.version) (dry run: nothing is sent to Last.fm)"
             : "Started \(AppInfo.version), scrobbling as \(settings.username)")
+        updateLoveShortcut()
         Notifier.shared.onAction = { [weak self] action in
             if action == "install-update" { self?.openUpdate() }
         }
@@ -144,6 +153,8 @@ final class MenuBarApp: NSObject, NSMenuDelegate {
         }
 
         nowItem.isEnabled = false
+        loveItem.keyEquivalent = "l"
+        loveItem.keyEquivalentModifierMask = [.control, .option, .command]
         mainArtistItem.toolTip = L("\u{201C}Joji & BENEE\u{201D} is scrobbled as \u{201C}Joji\u{201D}. Bands like \u{201C}Simon & Garfunkel\u{201D} are left alone (Last.fm's listener counts tell them apart).")
         catchUpItem.toolTip = L("Scrobbles songs from your library that you played on your iPhone or iPad, from Music's play history (synced through iCloud).")
         cleanItem.toolTip = L("\u{201C}Song [2022 Remaster]\u{201D} is scrobbled as \u{201C}Song\u{201D}, \u{201C}Album (Deluxe Edition)\u{201D} as \u{201C}Album\u{201D}")
@@ -154,7 +165,7 @@ final class MenuBarApp: NSObject, NSMenuDelegate {
         discordItem.isHidden = !DiscordPresence.available
 
         let options = NSMenu()
-        for item in [startupItem, discordItem, cleanItem, mainArtistItem, catchUpItem, checkUpdatesItem] { options.addItem(item) }
+        for item in [startupItem, discordItem, nowPlayingNotificationItem, loveShortcutItem, cleanItem, mainArtistItem, catchUpItem, checkUpdatesItem] { options.addItem(item) }
         ignoredMenu.autoenablesItems = false
         ignoredListItem.submenu = ignoredMenu
         options.addItem(ignoredListItem)
@@ -302,6 +313,9 @@ final class MenuBarApp: NSObject, NSMenuDelegate {
         setTitle(lastItem, scrobbler.lastScrobbled.isEmpty ? L("Nothing scrobbled yet") : Self.menuText(L("Last scrobbled: %@", scrobbler.lastScrobbled)))
         setTitle(recentItem, scrobbler.pending > 0 ? L("Recent Scrobbles (%@ Waiting)", scrobbler.pending) : L("Recent Scrobbles"))
         loveItem.isEnabled = np?.isValid == true && !dryRun
+        loveItem.state = lovedState() == true ? .on : .off
+        loveShortcutItem.state = settings.loveShortcut ? .on : .off
+        nowPlayingNotificationItem.state = settings.nowPlayingNotification ? .on : .off
         ignoreItem.isEnabled = np?.isValid == true
         setTitle(ignoreItem, np?.isValid == true
             ? Self.menuText(ignored ? L("Scrobble %@ Again", np?.artist ?? "") : L("Don\u{2019}t Scrobble %@", np?.artist ?? ""))
@@ -379,17 +393,97 @@ final class MenuBarApp: NSObject, NSMenuDelegate {
         Task { _ = await reader.requestAccess(); updateUi() }
     }
 
+    /// Whether the current song is loved on Last.fm; nil while unknown (starts the lookup).
+    private func lovedState() -> Bool? {
+        guard let np = scrobbler.currentAsSent, !dryRun, !settings.username.isEmpty else { return nil }
+        let key = np.artist + "\n" + np.title
+        if let known = loved[key] { return known }
+        if !lovedPending.contains(key) {
+            lovedPending.insert(key)
+            Task {
+                // Unknown on failure: the item just shows without a checkmark.
+                if let isLoved = try? await api.isLoved(artist: np.artist, title: np.title, user: settings.username) {
+                    if loved.count > 500 { loved.removeAll() }
+                    loved[key] = isLoved
+                }
+                lovedPending.remove(key)
+                updateUi()
+            }
+        }
+        return nil
+    }
+
+    /// The menu item: loves the song, or un-loves it if it's already loved (shown with a checkmark).
     @objc private func loveCurrent() {
-        guard let np = scrobbler.current, np.isValid else { return }
+        setLoved(lovedState() != true)
+    }
+
+    /// The keyboard shortcut only loves; it never takes a love back.
+    private func loveFromShortcut() {
+        guard let np = scrobbler.currentAsSent, !dryRun else {
+            Notifier.shared.show(L("Nothing playing"), L("Play a song in Music, then press %@ to love it.", HotKey.loveDescription))
+            return
+        }
+        if lovedState() == true {
+            Notifier.shared.show(L("Already loved"), np.description)
+        } else {
+            setLoved(true)
+        }
+    }
+
+    private func setLoved(_ love: Bool) {
+        guard let np = scrobbler.currentAsSent else { return }
+        let key = np.artist + "\n" + np.title
         Task {
             do {
-                try await api.love(artist: np.artist, title: np.title)
-                Log.write("Loved: \(np)")
-                Notifier.shared.show(L("\u{2665} Loved on Last.fm"), np.description)
+                if love { try await api.love(artist: np.artist, title: np.title) } else { try await api.unlove(artist: np.artist, title: np.title) }
+                loved[key] = love
+                Log.write((love ? "Loved: " : "Unloved: ") + np.description)
+                Notifier.shared.show(love ? L("\u{2665} Loved on Last.fm") : L("Removed from your loved tracks"), np.description)
+                updateUi()
             } catch {
-                Log.write("Love failed: \(error)")
-                Notifier.shared.show(L("Couldn't love this song"), error.localizedDescriptionIfUseful)
+                Log.write((love ? "Love" : "Unlove") + " failed: \(error)")
+                Notifier.shared.show(love ? L("Couldn't love this song") : L("Couldn't remove the love"), error.localizedDescriptionIfUseful)
             }
+        }
+    }
+
+    private func updateLoveShortcut() {
+        loveHotKey = nil
+        guard settings.loveShortcut else { return }
+        loveHotKey = HotKey.love { [weak self] in MainActor.assumeIsolated { self?.loveFromShortcut() } }
+        if loveHotKey == nil { Log.write("The love shortcut \(HotKey.loveDescription) is used by another app; turn it off in Options or quit that app") }
+    }
+
+    @objc private func toggleLoveShortcut() {
+        settings.loveShortcut.toggle()
+        updateLoveShortcut()
+        updateUi()
+    }
+
+    @objc private func toggleNowPlayingNotification() {
+        settings.nowPlayingNotification.toggle()
+        Log.write(settings.nowPlayingNotification ? "Now playing notifications turned on" : "Now playing notifications turned off")
+        updateUi()
+    }
+
+    /// The optional "now playing" notification, with album art when Apple's catalog has it.
+    private func showNowPlaying(_ np: NowPlaying) {
+        guard settings.nowPlayingNotification else { return }
+        Task {
+            var image: URL?
+            for _ in 0..<8 {
+                let (ready, links) = artwork.tryGet(artist: np.artist, title: np.title, album: np.album)
+                if ready {
+                    if let art = links?.artworkUrl, let url = URL(string: art), let (file, _) = try? await Http.download(url) {
+                        let named = FileManager.default.temporaryDirectory.appendingPathComponent("now-playing-\(UUID().uuidString).jpg")
+                        if (try? FileManager.default.moveItem(at: file, to: named)) != nil { image = named }
+                    }
+                    break
+                }
+                try? await Task.sleep(nanoseconds: 500_000_000)
+            }
+            Notifier.shared.show(np.title, np.album.isEmpty ? np.artist : "\(np.artist) \u{2014} \(np.album)", image: image)
         }
     }
 

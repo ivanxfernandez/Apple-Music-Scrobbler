@@ -70,6 +70,28 @@ namespace AppleMusicScrobbler
         public Task LoveAsync(string artist, string title) =>
             CallAsync("track.love", new Dictionary<string, string> { ["artist"] = artist, ["track"] = title }, withSession: true);
 
+        public Task UnloveAsync(string artist, string title) =>
+            CallAsync("track.unlove", new Dictionary<string, string> { ["artist"] = artist, ["track"] = title }, withSession: true);
+
+        /// <summary>Whether the user has loved this track on Last.fm (exact name, no autocorrect); false if Last.fm doesn't know it.</summary>
+        public async Task<bool> IsLovedAsync(string artist, string title, string user)
+        {
+            string url = ApiUrl + "?method=track.getInfo&autocorrect=0&artist=" + Uri.EscapeDataString(artist) + "&track=" + Uri.EscapeDataString(title) +
+                         "&username=" + Uri.EscapeDataString(user) + "&api_key=" + Uri.EscapeDataString(_settings.EffectiveApiKey);
+            using (var response = await Http.Client.GetAsync(url).ConfigureAwait(false))
+            {
+                byte[] body = await response.Content.ReadAsByteArrayAsync().ConfigureAwait(false);
+                XElement root;
+                try { root = XElement.Parse(Encoding.UTF8.GetString(body).TrimStart('\uFEFF')); }
+                catch { throw new LastFmException(0, $"Unexpected response from Last.fm (HTTP {(int)response.StatusCode})"); }
+                if ((string)root.Attribute("status") == "ok") return (string)root.Element("track")?.Element("userloved") == "1";
+                var error = root.Element("error");
+                int code = (int?)error?.Attribute("code") ?? 0;
+                if (code == 6) return false; // track not found
+                throw new LastFmException(code, error?.Value.Trim() ?? "Unknown Last.fm error");
+            }
+        }
+
         /// <summary>How many people listen to an artist on Last.fm (exact name, no autocorrect); 0 if Last.fm doesn't know it.</summary>
         public async Task<long> GetArtistListenersAsync(string artist)
         {

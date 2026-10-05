@@ -49,6 +49,20 @@ namespace AppleMusicScrobbler
 
         /// <summary>Raised when the Last.fm login stopped working.</summary>
         public event Action AuthProblem;
+        /// <summary>Raised when a song is announced as "now playing" (not while paused or for ignored artists).</summary>
+        public event Action<NowPlaying> NowPlayingStarted;
+
+        /// <summary>The current song as it's sent to Last.fm: cleaned title and album, and the main artist if that option is on.</summary>
+        public NowPlaying CurrentAsSent
+        {
+            get
+            {
+                var np = Current;
+                if (np == null || !np.IsValid) return null;
+                if (!_settings.MainArtistOnly) return np;
+                return new NowPlaying { Artist = _mainArtist.Resolve(np.Artist), Title = np.Title, Album = np.Album, Duration = np.Duration, Position = np.Position, IsPlaying = np.IsPlaying };
+            }
+        }
 
         static string QueuePath => Path.Combine(AppInfo.DataFolder, "queue.xml");
 
@@ -90,7 +104,11 @@ namespace AppleMusicScrobbler
                         Position = np.Position,
                         IsPlaying = np.IsPlaying,
                     };
-                if (events.NowPlaying) _ = SendNowPlayingAsync(output);
+                if (events.NowPlaying)
+                {
+                    _ = SendNowPlayingAsync(output);
+                    NowPlayingStarted?.Invoke(output);
+                }
                 if (events.ScrobbleAt.HasValue) Enqueue(output, events.ScrobbleAt.Value);
             }
 
