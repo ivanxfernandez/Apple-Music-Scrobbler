@@ -127,14 +127,21 @@ namespace AppleMusicScrobbler
             AcceptButton = _connectButton;
             CancelButton = cancel;
 
-            _status = Paragraph("", 0, null, SystemColors.GrayText);
+            _status = Paragraph("", 0, null, Theme.SecondaryText);
             _status.Margin = new Padding(0, u / 2, 0, 0);
             _reopenLink = new LinkLabel { Text = L("Open the Last.fm page again"), AutoSize = true, Visible = false };
             _reopenLink.LinkClicked += (s, e) => { if (_token != null) AppInfo.OpenUrl(_api.GetAuthUrl(_token)); };
             layout.Controls.Add(_reopenLink);
 
+            Theme.Apply(this);
             _poll.Tick += OnPollTick;
             FormClosed += (s, e) => _poll.Dispose();
+        }
+
+        protected override void OnHandleCreated(EventArgs e)
+        {
+            base.OnHandleCreated(e);
+            Theme.UseDarkTitleBar(Handle);
         }
 
         async void OnConnectClick(object sender, EventArgs e)
@@ -220,7 +227,7 @@ namespace AppleMusicScrobbler
         void ShowStatus(string text, bool error = false)
         {
             _status.Text = text;
-            _status.ForeColor = error ? Color.Firebrick : SystemColors.GrayText;
+            _status.ForeColor = error ? Theme.ErrorText : Theme.SecondaryText;
         }
 
         void SetBusy(bool busy)

@@ -110,7 +110,9 @@ namespace AppleMusicScrobbler
                 new ToolStripMenuItem(L("Open log"), null, (s, e) => OpenLog()),
             });
 
+            Theme.ApplyToMenus();
             var menu = new ContextMenuStrip();
+            menu.Opening += (s, e) => Theme.ApplyToMenus(); // follows a theme switch without restarting
             menu.Items.AddRange(new ToolStripItem[]
             {
                 _nowItem,
