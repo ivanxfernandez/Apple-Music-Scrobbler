@@ -17,6 +17,15 @@ namespace AppleMusicScrobbler.Tests
         public void Finds_the_first_artist(string credit, string expected) =>
             Assert.Equal(expected, MainArtist.FirstArtist(credit));
 
+        [Theory]
+        [InlineData("", LoveShortcut.WinAltL)]
+        [InlineData("AltShiftL", LoveShortcut.AltShiftL)]
+        [InlineData("Off", LoveShortcut.Off)]
+        [InlineData("Something else", LoveShortcut.WinAltL)]
+        [InlineData("42", LoveShortcut.WinAltL)]
+        public void Reads_the_love_shortcut_setting(string value, LoveShortcut expected) =>
+            Assert.Equal(expected, LoveShortcuts.Parse(value));
+
         // Real Last.fm listener counts (October 2026): full credit, first artist alone.
         [Theory]
         [InlineData("Joji & BENEE", 14247, 3177868, true)]

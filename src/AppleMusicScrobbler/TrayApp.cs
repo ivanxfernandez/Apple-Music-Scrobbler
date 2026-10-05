@@ -60,16 +60,19 @@ namespace AppleMusicScrobbler
             _recentItem.DropDownOpening += (s, e) => BuildRecentMenu();
             _updateItem = new ToolStripMenuItem(L("Update available"), null, (s, e) => OfferUpdate()) { Visible = false };
             _updateItem.Font = new Font(_updateItem.Font, FontStyle.Bold);
-            _loveItem = new ToolStripMenuItem(L("♥ Love this song on Last.fm"), null, async (s, e) => await SetLovedAsync(LovedState() != true))
+            _loveItem = new ToolStripMenuItem(L("♥ Love this song on Last.fm"), null, async (s, e) => await SetLovedAsync(LovedState() != true));
+            _loveShortcutItem = new ToolStripMenuItem(L("♥ Keyboard shortcut"));
+            foreach (LoveShortcut choice in Enum.GetValues(typeof(LoveShortcut)))
             {
-                ShortcutKeyDisplayString = HotKey.LoveDescription,
-            };
-            _loveShortcutItem = new ToolStripMenuItem(L("♥ Keyboard shortcut ({0})", HotKey.LoveDescription), null, (s, e) =>
-            {
-                _settings.LoveShortcut = !_settings.LoveShortcut;
-                SaveSettings();
-                UpdateLoveShortcut();
-            });
+                var shortcut = choice;
+                _loveShortcutItem.DropDownItems.Add(new ToolStripMenuItem(LoveShortcuts.Describe(shortcut), null, (s, e) =>
+                {
+                    _settings.LoveShortcutKeys = shortcut.ToString();
+                    SaveSettings();
+                    Log.Write("Love shortcut: " + LoveShortcuts.Describe(shortcut));
+                    UpdateLoveShortcut();
+                }) { Tag = shortcut });
+            }
             _nowPlayingNotificationItem = new ToolStripMenuItem(L("Show a notification when a song starts"), null, (s, e) =>
             {
                 _settings.NowPlayingNotification = !_settings.NowPlayingNotification;
@@ -256,7 +259,7 @@ namespace AppleMusicScrobbler
             SetText(_recentItem, _scrobbler.Pending > 0 ? L("Recent scrobbles ({0} waiting)", _scrobbler.Pending) : L("Recent scrobbles"));
             _loveItem.Enabled = np != null && np.IsValid && !Program.DryRun;
             _loveItem.Checked = LovedState() == true;
-            _loveItem.ShortcutKeyDisplayString = _loveHotKey != null ? HotKey.LoveDescription : null;
+            _loveItem.ShortcutKeyDisplayString = _loveHotKey != null ? LoveShortcuts.Describe(LoveShortcuts.Parse(_settings.LoveShortcutKeys)) : null;
             _ignoreItem.Enabled = np != null && np.IsValid;
             SetText(_ignoreItem, np != null && np.IsValid
                 ? MenuText(ignored ? L("Scrobble {0} again", np.Artist) : L("Don't scrobble {0}", np.Artist))
@@ -418,7 +421,7 @@ namespace AppleMusicScrobbler
         {
             var np = _scrobbler.CurrentAsSent;
             if (np == null || Program.DryRun)
-                ShowBalloon(L("Nothing playing"), L("Play a song in Apple Music, then press {0} to love it.", HotKey.LoveDescription), ToolTipIcon.Info);
+                ShowBalloon(L("Nothing playing"), L("Play a song in Apple Music, then press {0} to love it.", LoveShortcuts.Describe(LoveShortcuts.Parse(_settings.LoveShortcutKeys))), ToolTipIcon.Info);
             else if (LovedState() == true)
                 ShowBalloon(L("Already loved"), np.ToString(), ToolTipIcon.None);
             else
@@ -428,10 +431,12 @@ namespace AppleMusicScrobbler
         void UpdateLoveShortcut()
         {
             _loveHotKey?.Dispose();
-            _loveHotKey = _settings.LoveShortcut ? HotKey.Love(LoveFromShortcut) : null;
-            if (_settings.LoveShortcut && _loveHotKey == null)
-                Log.Write($"The love shortcut {HotKey.LoveDescription} is used by another app; turn it off in Options or quit that app");
-            _loveShortcutItem.Checked = _settings.LoveShortcut;
+            var shortcut = LoveShortcuts.Parse(_settings.LoveShortcutKeys);
+            _loveHotKey = HotKey.Love(shortcut, LoveFromShortcut);
+            if (shortcut != LoveShortcut.Off && _loveHotKey == null)
+                Log.Write($"The love shortcut {LoveShortcuts.Describe(shortcut)} is used by another app; pick another one in Options");
+            foreach (ToolStripMenuItem item in _loveShortcutItem.DropDownItems)
+                item.Checked = (LoveShortcut)item.Tag == shortcut;
             UpdateUi();
         }
 

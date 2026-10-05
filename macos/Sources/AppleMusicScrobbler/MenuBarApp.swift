@@ -32,7 +32,8 @@ final class MenuBarApp: NSObject, NSMenuDelegate {
     private let cleanItem = NSMenuItem(title: L("Clean Up Titles (Remove \u{201C}Remaster\u{201D}, \u{201C}- Single\u{201D}\u{2026})"), action: #selector(toggleClean), keyEquivalent: "")
     private let mainArtistItem = NSMenuItem(title: L("Scrobble Only the Main Artist of Collaborations"), action: #selector(toggleMainArtist), keyEquivalent: "")
     private let catchUpItem = NSMenuItem(title: L("Catch Up on Plays from Other Devices"), action: #selector(toggleCatchUp), keyEquivalent: "")
-    private let loveShortcutItem = NSMenuItem(title: L("\u{2665} Keyboard Shortcut (%@)", HotKey.loveDescription), action: #selector(toggleLoveShortcut), keyEquivalent: "")
+    private let loveShortcutItem = NSMenuItem(title: L("\u{2665} Keyboard Shortcut"), action: nil, keyEquivalent: "")
+    private let loveShortcutMenu = NSMenu()
     private let nowPlayingNotificationItem = NSMenuItem(title: L("Show a Notification When a Song Starts"), action: #selector(toggleNowPlayingNotification), keyEquivalent: "")
     private let checkUpdatesItem = NSMenuItem(title: L("Check for Updates Automatically"), action: #selector(toggleUpdateChecks), keyEquivalent: "")
 
@@ -153,8 +154,8 @@ final class MenuBarApp: NSObject, NSMenuDelegate {
         }
 
         nowItem.isEnabled = false
-        loveItem.keyEquivalent = "l"
-        loveItem.keyEquivalentModifierMask = [.control, .option, .command]
+        loveShortcutMenu.autoenablesItems = false
+        loveShortcutItem.submenu = loveShortcutMenu
         mainArtistItem.toolTip = L("\u{201C}Joji & BENEE\u{201D} is scrobbled as \u{201C}Joji\u{201D}. Bands like \u{201C}Simon & Garfunkel\u{201D} are left alone (Last.fm's listener counts tell them apart).")
         catchUpItem.toolTip = L("Scrobbles songs from your library that you played on your iPhone or iPad, from Music's play history (synced through iCloud).")
         cleanItem.toolTip = L("\u{201C}Song [2022 Remaster]\u{201D} is scrobbled as \u{201C}Song\u{201D}, \u{201C}Album (Deluxe Edition)\u{201D} as \u{201C}Album\u{201D}")
@@ -314,7 +315,6 @@ final class MenuBarApp: NSObject, NSMenuDelegate {
         setTitle(recentItem, scrobbler.pending > 0 ? L("Recent Scrobbles (%@ Waiting)", scrobbler.pending) : L("Recent Scrobbles"))
         loveItem.isEnabled = np?.isValid == true && !dryRun
         loveItem.state = lovedState() == true ? .on : .off
-        loveShortcutItem.state = settings.loveShortcut ? .on : .off
         nowPlayingNotificationItem.state = settings.nowPlayingNotification ? .on : .off
         ignoreItem.isEnabled = np?.isValid == true
         setTitle(ignoreItem, np?.isValid == true
@@ -421,7 +421,7 @@ final class MenuBarApp: NSObject, NSMenuDelegate {
     /// The keyboard shortcut only loves; it never takes a love back.
     private func loveFromShortcut() {
         guard let np = scrobbler.currentAsSent, !dryRun else {
-            Notifier.shared.show(L("Nothing playing"), L("Play a song in Music, then press %@ to love it.", HotKey.loveDescription))
+            Notifier.shared.show(L("Nothing playing"), L("Play a song in Music, then press %@ to love it.", currentShortcut.description))
             return
         }
         if lovedState() == true {
@@ -448,17 +448,33 @@ final class MenuBarApp: NSObject, NSMenuDelegate {
         }
     }
 
+    private var currentShortcut: LoveShortcut { LoveShortcut(rawValue: settings.loveShortcut) ?? .standard }
+
     private func updateLoveShortcut() {
         loveHotKey = nil
-        guard settings.loveShortcut else { return }
-        loveHotKey = HotKey.love { [weak self] in MainActor.assumeIsolated { self?.loveFromShortcut() } }
-        if loveHotKey == nil { Log.write("The love shortcut \(HotKey.loveDescription) is used by another app; turn it off in Options or quit that app") }
+        let shortcut = currentShortcut
+        loveHotKey = HotKey.love(shortcut) { [weak self] in MainActor.assumeIsolated { self?.loveFromShortcut() } }
+        if shortcut != .off && loveHotKey == nil {
+            Log.write("The love shortcut \(shortcut.description) is used by another app; pick another one in Options")
+        }
+        // Show the shortcut next to the love item, only when it works.
+        loveItem.keyEquivalent = loveHotKey == nil ? "" : "l"
+        loveItem.keyEquivalentModifierMask = loveHotKey == nil ? [] : shortcut.menuModifiers
+        loveShortcutMenu.removeAllItems()
+        for choice in LoveShortcut.allCases {
+            let item = NSMenuItem(title: choice.description, action: #selector(chooseLoveShortcut(_:)), keyEquivalent: "")
+            item.target = self
+            item.representedObject = choice.rawValue
+            item.state = choice == shortcut ? .on : .off
+            loveShortcutMenu.addItem(item)
+        }
     }
 
-    @objc private func toggleLoveShortcut() {
-        settings.loveShortcut.toggle()
+    @objc private func chooseLoveShortcut(_ sender: NSMenuItem) {
+        guard let raw = sender.representedObject as? String else { return }
+        settings.loveShortcut = raw
+        Log.write("Love shortcut: \((LoveShortcut(rawValue: raw) ?? .standard).description)")
         updateLoveShortcut()
-        updateUi()
     }
 
     @objc private func toggleNowPlayingNotification() {

@@ -1,11 +1,46 @@
+import AppKit
 import Carbon
 import ScrobblerCore
 
-/// A system-wide keyboard shortcut (Carbon's RegisterEventHotKey, which needs no Accessibility permission).
-/// Used for ⌃⌥⌘L: love the current song from any app.
-final class HotKey {
-    static let loveDescription = "\u{2303}\u{2325}\u{2318}L"
+/// The shortcuts offered for loving the current song from any app (Options › ♥ Keyboard Shortcut).
+enum LoveShortcut: String, CaseIterable {
+    case controlOptionL = "ctrl-opt-l"
+    case controlCommandL = "ctrl-cmd-l"
+    case controlOptionCommandL = "ctrl-opt-cmd-l"
+    case off
 
+    static let standard = LoveShortcut.controlOptionL
+
+    var description: String {
+        switch self {
+        case .controlOptionL: return "\u{2303}\u{2325}L"
+        case .controlCommandL: return "\u{2303}\u{2318}L"
+        case .controlOptionCommandL: return "\u{2303}\u{2325}\u{2318}L"
+        case .off: return L("Off")
+        }
+    }
+
+    var carbonModifiers: UInt32 {
+        switch self {
+        case .controlOptionL: return UInt32(controlKey | optionKey)
+        case .controlCommandL: return UInt32(controlKey | cmdKey)
+        case .controlOptionCommandL: return UInt32(controlKey | optionKey | cmdKey)
+        case .off: return 0
+        }
+    }
+
+    var menuModifiers: NSEvent.ModifierFlags {
+        switch self {
+        case .controlOptionL: return [.control, .option]
+        case .controlCommandL: return [.control, .command]
+        case .controlOptionCommandL: return [.control, .option, .command]
+        case .off: return []
+        }
+    }
+}
+
+/// A system-wide keyboard shortcut (Carbon's RegisterEventHotKey, which needs no Accessibility permission).
+final class HotKey {
     private var ref: EventHotKeyRef?
     private var handler: EventHandlerRef?
     private let action: () -> Void
@@ -29,9 +64,9 @@ final class HotKey {
         }
     }
 
-    /// ⌃⌥⌘L
-    static func love(_ action: @escaping () -> Void) -> HotKey? {
-        HotKey(keyCode: UInt32(kVK_ANSI_L), modifiers: UInt32(controlKey | optionKey | cmdKey), action: action)
+    /// The chosen shortcut with L, or nil if it's off or taken.
+    static func love(_ shortcut: LoveShortcut, _ action: @escaping () -> Void) -> HotKey? {
+        shortcut == .off ? nil : HotKey(keyCode: UInt32(kVK_ANSI_L), modifiers: shortcut.carbonModifiers, action: action)
     }
 
     deinit {

@@ -74,7 +74,8 @@ public enum Localization {
         "\u{201C}Song [2022 Remaster]\u{201D} is scrobbled as \u{201C}Song\u{201D}, \u{201C}Album (Deluxe Edition)\u{201D} as \u{201C}Album\u{201D}":
             "\u{201C}Song [2022 Remaster]\u{201D} se envía como \u{201C}Song\u{201D}, y \u{201C}Album (Deluxe Edition)\u{201D} como \u{201C}Album\u{201D}",
 
-        "\u{2665} Keyboard Shortcut (%@)": "\u{2665} Atajo de teclado (%@)",
+        "\u{2665} Keyboard Shortcut": "\u{2665} Atajo de teclado",
+        "Off": "Desactivado",
         "Show a Notification When a Song Starts": "Mostrar una notificación cuando empiece una canción",
         "Play a song in Music, then press %@ to love it.": "Pon una canción en Música y presiona %@ para marcarla con \u{201C}Me encanta\u{201D}.",
         "Already loved": "Ya tiene \u{201C}Me encanta\u{201D}",

@@ -4,7 +4,7 @@
 
 - **Windows: dark mode.** The tray menu and the setup window follow Windows' light/dark app setting.
 - **Loved songs show a check mark** on *♥ Love this song on Last.fm*; click it again to remove the love.
-- **Keyboard shortcut to love the current song** from any app: Ctrl+Shift+Alt+L on Windows, ⌃⌥⌘L on the Mac. On by default; turn it off in *Options* if it clashes with another app.
+- **Keyboard shortcut to love the current song** from any app: **Win+Alt+L** on Windows, **⌃⌥L** (Control-Option-L) on the Mac. *Options › ♥ Keyboard shortcut* offers a few other combinations, or *Off*.
 - **Optional "now playing" notification** when a song starts (*Options*, off by default), with album art on the Mac.
 - A [contributor guide](CONTRIBUTING.md), including how to add a translation.
 

@@ -23,8 +23,8 @@ namespace AppleMusicScrobbler
         public bool CheckForUpdates { get; set; } = true;
         /// <summary>Remove "Remaster", "Deluxe Edition", "- Single" etc. from titles (see TitleCleaner).</summary>
         public bool CleanTitles { get; set; } = true;
-        /// <summary>The keyboard shortcut that loves the current song from anywhere (see HotKey).</summary>
-        public bool LoveShortcut { get; set; } = true;
+        /// <summary>The keyboard shortcut that loves the current song from anywhere: a LoveShortcut name, empty for the standard one.</summary>
+        public string LoveShortcutKeys { get; set; } = "";
         /// <summary>A notification with the song when a song starts.</summary>
         public bool NowPlayingNotification { get; set; }
         /// <summary>Scrobble collaborations ("Joji &amp; BENEE") as their first artist (see MainArtist).</summary>
