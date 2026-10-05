@@ -122,11 +122,7 @@ namespace AppleMusicScrobbler
                 foreach (var kv in args)
                     if (!string.IsNullOrEmpty(kv.Value)) parameters[kv.Key] = kv.Value;
 
-            // Signature: every parameter as name+value, sorted by name, then the shared secret, MD5'd.
-            var toSign = new StringBuilder();
-            foreach (var kv in parameters) toSign.Append(kv.Key).Append(kv.Value);
-            toSign.Append(_settings.EffectiveApiSecret);
-            parameters["api_sig"] = Md5Hex(toSign.ToString());
+            parameters["api_sig"] = Sign(parameters, _settings.EffectiveApiSecret);
 
             HttpResponseMessage httpResponse;
             using (var content = new FormUrlEncodedContent(parameters))
@@ -150,6 +146,19 @@ namespace AppleMusicScrobbler
                 var error = root.Element("error");
                 throw new LastFmException((int?)error?.Attribute("code") ?? 0, error?.Value.Trim() ?? "Unknown Last.fm error");
             }
+        }
+
+        /// <summary>
+        /// Last.fm request signature: every parameter as name+value, sorted by name (ordinal),
+        /// followed by the shared secret, MD5-hashed as UTF-8.
+        /// </summary>
+        internal static string Sign(IEnumerable<KeyValuePair<string, string>> parameters, string secret)
+        {
+            var toSign = new StringBuilder();
+            foreach (var kv in parameters.OrderBy(p => p.Key, StringComparer.Ordinal))
+                toSign.Append(kv.Key).Append(kv.Value);
+            toSign.Append(secret);
+            return Md5Hex(toSign.ToString());
         }
 
         static string Md5Hex(string text)

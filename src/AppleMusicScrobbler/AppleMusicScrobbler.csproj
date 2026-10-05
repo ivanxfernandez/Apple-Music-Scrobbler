@@ -32,6 +32,7 @@
     <AssemblyMetadata Include="LastFmApiKey" Value="$(LastFmApiKey)" />
     <AssemblyMetadata Include="LastFmApiSecret" Value="$(LastFmApiSecret)" />
     <AssemblyMetadata Include="GitHubRepo" Value="$(GitHubRepo)" />
+    <InternalsVisibleTo Include="AppleMusicScrobbler.Tests" />
   </ItemGroup>
 
   <ItemGroup>

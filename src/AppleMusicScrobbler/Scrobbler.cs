@@ -18,9 +18,8 @@ namespace AppleMusicScrobbler
     }
 
     /// <summary>
-    /// Decides when a song counts as listened (Last.fm rules: longer than 30 seconds and played for
-    /// half its length or 4 minutes, whichever comes first) and delivers scrobbles, keeping a queue
-    /// on disk so nothing is lost while offline. Called once a second from the UI thread.
+    /// Feeds player snapshots to the PlayTracker and delivers what it decides to Last.fm, keeping
+    /// a queue on disk so nothing is lost while offline. Called once a second from the UI thread.
     /// </summary>
     public class Scrobbler
     {
@@ -32,20 +31,10 @@ namespace AppleMusicScrobbler
         readonly bool _dryRun;
         readonly List<QueuedScrobble> _queue;
 
-        Play _play;
+        readonly PlayTracker _tracker = new PlayTracker();
         DateTime _lastUpdate = DateTime.UtcNow;
         DateTime _nextSend = DateTime.MinValue;
         bool _sending;
-
-        class Play
-        {
-            public string Key;
-            public double SecondsPlayed;
-            public long StartedAt;
-            public double LastPosition;
-            public bool NowPlayingSent;
-            public bool Scrobbled;
-        }
 
         public NowPlaying Current { get; private set; }
         public string LastScrobbled { get; private set; }
@@ -70,39 +59,15 @@ namespace AppleMusicScrobbler
             var now = DateTime.UtcNow;
             double elapsed = (now - _lastUpdate).TotalSeconds;
             _lastUpdate = now;
-            if (elapsed < 0 || elapsed > 5) elapsed = 0; // clock changed or PC was asleep
 
             if (_settings.CleanTitles) np = TitleCleaner.Apply(np);
             Current = np;
-            if (np != null && np.IsValid)
+
+            var events = _tracker.Update(np, elapsed, DateTimeOffset.UtcNow.ToUnixTimeSeconds());
+            if (!_settings.Paused)
             {
-                string key = np.Artist + "\n" + np.Title + "\n" + np.Album;
-                if (_play == null || _play.Key != key)
-                    _play = new Play { Key = key, LastPosition = np.Position };
-                else if (_play.SecondsPlayed > 30 && _play.LastPosition > 30 && np.Position < 10)
-                    _play = new Play { Key = key, LastPosition = np.Position }; // same song again (repeat)
-                _play.LastPosition = np.Position;
-
-                if (np.IsPlaying)
-                {
-                    if (_play.StartedAt == 0) _play.StartedAt = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
-                    _play.SecondsPlayed += elapsed;
-
-                    // Wait 2 seconds so a half-updated title/artist during a track change isn't reported.
-                    if (!_play.NowPlayingSent && _play.SecondsPlayed >= 2)
-                    {
-                        _play.NowPlayingSent = true;
-                        if (!_settings.Paused) _ = SendNowPlayingAsync(np);
-                    }
-
-                    bool longEnough = np.Duration == 0 || np.Duration > 30;
-                    double needed = np.Duration > 0 ? Math.Min(np.Duration / 2.0, 240) : 240;
-                    if (!_play.Scrobbled && longEnough && _play.SecondsPlayed >= needed)
-                    {
-                        _play.Scrobbled = true;
-                        if (!_settings.Paused) Enqueue(np, _play.StartedAt);
-                    }
-                }
+                if (events.NowPlaying) _ = SendNowPlayingAsync(np);
+                if (events.ScrobbleAt.HasValue) Enqueue(np, events.ScrobbleAt.Value);
             }
 
             if (_queue.Count > 0 && !_sending && now >= _nextSend)
