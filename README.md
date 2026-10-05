@@ -6,29 +6,43 @@ Scrobble the **Apple Music app for Windows** to **Last.fm**. No browser extensio
 
 The Apple Music app on Windows 11/10 doesn't support Last.fm. This small tray app watches what Apple Music is playing (through the same Windows media controls you see in the volume flyout) and sends it to your Last.fm profile.
 
+<p align="center"><img src="docs/menu.png" alt="The tray menu, showing the current song and the last scrobble"></p>
+
 - **Now playing** shows up on your Last.fm profile while a song plays
 - **Scrobbles** follow Last.fm's rules: songs longer than 30 seconds count once you've played half of them or 4 minutes, whichever comes first
+- **Clean titles**: *"Song [2022 Remaster]"* is scrobbled as *"Song"* and *"Album (Deluxe Edition)"* as *"Album"*, so your plays land on the normal Last.fm pages (this can be turned off)
 - **Works offline**: scrobbles are saved and sent when you're back online
 - **♥ Love** the current song from the tray menu
-- Pause scrobbling, switch accounts, and start with Windows from the tray menu
+- **Update notifications** when a new version is released
 - A single ~80 KB `.exe`. There's no installer and nothing else to download, because it uses the .NET Framework 4.8 that already comes with Windows 10/11
 
 ## Install
 
-1. Download `AppleMusicScrobbler.exe` from [Releases](../../releases).
+1. Download `AppleMusicScrobbler.exe` from the [latest release](../../releases/latest).
 2. Put it somewhere permanent, for example `%LOCALAPPDATA%\Programs\AppleMusicScrobbler\`. The "Start with Windows" option points at wherever the exe is.
 3. Run it. The setup window walks you through connecting your Last.fm account.
 
-> **Windows SmartScreen** may warn about an unrecognized app because the exe isn't code-signed. Click **More info → Run anyway**, or build it yourself from source (see below).
+> **Windows SmartScreen** may warn about an unrecognized app because the exe isn't code-signed. Click **More info → Run anyway**, or build it yourself from source (see below). Each release lists the exe's SHA-256 so you can verify your download.
+
+To update, quit the app from the tray menu, replace the exe, and start it again. Your settings and login are kept.
 
 ### About the Last.fm API key
 
-Last.fm requires each app to have an API key. Unless your copy was built with a key included (see [Building](#building)), setup asks you to make your own. It's free and takes a minute:
+Release builds include an API key, so you only need to click **Connect** and then **Yes, allow access** on Last.fm.
+
+If you built the app yourself without a key, setup asks you to create one. It's free and takes a minute:
+
+<details>
+<summary>Creating a Last.fm API key</summary>
+
+<img src="docs/setup.png" alt="The setup window" width="420">
 
 1. Open [last.fm/api/account/create](https://www.last.fm/api/account/create) while signed in to Last.fm.
 2. Enter any application name and description, and leave **Callback URL** empty.
 3. Copy the **API key** and **Shared secret** into the setup window and click **Connect**.
 4. Click **Yes, allow access** on the Last.fm page that opens.
+
+</details>
 
 ## Usage
 
@@ -40,9 +54,11 @@ The app lives in the system tray as a red note icon (you may need to click the *
 | ♥ Love this song on Last.fm | Loves the current track |
 | Pause scrobbling | Stops sending anything (the icon turns grey) |
 | Open my Last.fm profile | Opens your profile in the browser |
-| Switch Last.fm account... | Reconnects, or connects a different account |
-| Start with Windows | Runs automatically when you sign in |
-| Open log | Shows what was sent and any errors |
+| Options › Start with Windows | Runs automatically when you sign in |
+| Options › Clean up titles | Removes "Remaster", "Deluxe Edition", "- Single" and similar from names (on by default) |
+| Options › Check for updates automatically | Checks GitHub once a day (on by default) |
+| Options › Switch Last.fm account... | Reconnects, or connects a different account |
+| Options › Open log | Shows what was sent and any errors |
 
 ## How it works
 
@@ -54,11 +70,11 @@ The app lives in the system tray as a red note icon (you may need to click the *
 
 Everything is stored in `%APPDATA%\AppleMusicScrobbler\`:
 
-- `settings.xml`: your Last.fm username, and the session key and API secret encrypted with Windows DPAPI, so only your Windows user can read them
+- `settings.xml`: your options, your Last.fm username, and the session key and API secret encrypted with Windows DPAPI, so only your Windows user can read them
 - `queue.xml`: scrobbles waiting to be sent
 - `scrobbler.log`: activity log, capped at about 1 MB
 
-The app talks only to `ws.audioscrobbler.com`, which is Last.fm's API.
+The app talks to `ws.audioscrobbler.com` (Last.fm's API) and, for update checks, `api.github.com`.
 
 ## Known limitations
 
@@ -71,27 +87,46 @@ The app talks only to `ws.audioscrobbler.com`, which is Last.fm's API.
 Requires the [.NET SDK](https://dotnet.microsoft.com/download) (8 or later) on Windows.
 
 ```bash
-dotnet build src/AppleMusicScrobbler -c Release
+dotnet build AppleMusicScrobbler.sln -c Release
+```
+
+```bash
+dotnet test AppleMusicScrobbler.sln -c Release
 ```
 
 The exe is written to `src/AppleMusicScrobbler/bin/Release/net48/AppleMusicScrobbler.exe`.
 
-To include a Last.fm API key so that users skip creating their own:
+Optional build properties:
 
-```bash
-dotnet build src/AppleMusicScrobbler -c Release -p:LastFmApiKey=YOUR_KEY -p:LastFmApiSecret=YOUR_SECRET
-```
+| Property | Purpose |
+| --- | --- |
+| `-p:LastFmApiKey=…` `-p:LastFmApiSecret=…` | Bake in a Last.fm API key so users skip creating their own. Pass it only at build time and keep it out of the repository. |
+| `-p:GitHubRepo=owner/repo` | Turn on update checks against that repository's releases. |
+| `-p:Version=1.2.3` | Set the version. |
 
-Keep the key out of the repository and pass it only when building a release.
+### Releasing
 
-Useful while developing:
+The [Release workflow](.github/workflows/release.yml) does all of this automatically:
+
+1. Add the repository secrets `LASTFM_API_KEY` and `LASTFM_API_SECRET` (*Settings › Secrets and variables › Actions*) once.
+2. Update [CHANGELOG.md](CHANGELOG.md), then tag and push:
+   ```bash
+   git tag v1.1.0
+   ```
+   ```bash
+   git push origin v1.1.0
+   ```
+3. GitHub Actions runs the tests, builds the exe with the key, version and repository baked in, and publishes the release. Installed copies notify their users within a day.
+
+### Developer options
 
 - `AppleMusicScrobbler.exe --dry-run` logs what it would send, without contacting Last.fm.
+- `tools/screenshots.ps1` regenerates the README screenshots (`docs/menu.png`, `docs/setup.png`).
 - `tools/make-icon.ps1` regenerates `app.ico` from `IconFactory.cs`.
 
 ## Uninstall
 
-Untick **Start with Windows** in the tray menu, then choose **Quit**. Delete the exe and the `%APPDATA%\AppleMusicScrobbler` folder.
+Untick **Options › Start with Windows** in the tray menu, then choose **Quit**. Delete the exe and the `%APPDATA%\AppleMusicScrobbler` folder.
 
 ## License
 
