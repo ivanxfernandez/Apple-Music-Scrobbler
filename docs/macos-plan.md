@@ -1,6 +1,6 @@
 # macOS version: plan
 
-Status: **step 1 done** (see *Verified on the Mac*). Written from the Windows side on 2026-10-04 so the work can continue on a Mac.
+Status: **released in v1.3.0** (unsigned). See *Verified on the Mac*. Written from the Windows side on 2026-10-04 so the work can continue on a Mac.
 Facts marked *(verify)* come from general knowledge and must be checked on a real Mac before relying on them.
 
 ## Goal
@@ -69,7 +69,7 @@ Logged with a small `DistributedNotificationCenter` listener and scripted playba
 - **`Total Time` can change mid-track** (142000 → 142506, 192043 → 191999 → 192000). Never treat a duration change as a new song; key plays on `PersistentID`.
 - **No event** for scripted seeks (`set player position`) or for a **Repeat One restart**. Changing the repeat setting **does** re-post the same `Playing` payload. Pause/resume and track changes post as expected.
 - **Position:** only via AppleScript `player position` (seconds, real). `tell application "Music"` launches Music if it isn't running, so check `NSRunningApplication` first.
-- **Automation permission survives unsigned updates:** after allowing access, rebuilding the ad-hoc signed app with a code change (new CDHash) and relaunching it from the same place kept the permission (macOS 27). Not yet tested: a downloaded, quarantined copy replacing it.
+- **Automation permission survives unsigned updates:** after allowing access, rebuilding the ad-hoc signed app with a code change (new CDHash) and relaunching it from the same place kept the permission (macOS 27). Also verified with the v1.3.0 release: a browser-downloaded (quarantined) copy replacing a local build kept the permission, the Last.fm login and the settings. Gatekeeper behaved as the README describes (blocked, then *Privacy & Security › Open Anyway* with the user's password).
 - **Toolchain:** Command Line Tools only (no Xcode) build Swift packages and run **Swift Testing** tests, including `CryptoKit` MD5. **XCTest is not available** without Xcode, so write all tests with Swift Testing.
 
 ## What to check on the Mac before starting
