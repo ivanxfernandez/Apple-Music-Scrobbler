@@ -1,0 +1,41 @@
+# Screenshots of the Windows app in light and dark mode, uploaded as an artifact, so the UI can be
+# checked without a Windows PC. Runs on pushes to dev that touch the Windows app, or by hand.
+name: Screenshots
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [dev]
+    paths: ['src/**', 'tools/screenshots.ps1', '.github/workflows/screenshots.yml']
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Build
+        run: dotnet build src/AppleMusicScrobbler -c Release
+
+      - name: Screenshots
+        shell: pwsh
+        run: |
+          $personalize = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Themes\Personalize'
+          New-Item -Path $personalize -Force | Out-Null
+          foreach ($theme in @(@{ Name = 'light'; Value = 1 }, @{ Name = 'dark'; Value = 0 })) {
+            Set-ItemProperty -Path $personalize -Name AppsUseLightTheme -Value $theme.Value -Type DWord
+            Set-ItemProperty -Path $personalize -Name SystemUsesLightTheme -Value $theme.Value -Type DWord
+            foreach ($language in @('en', 'es')) {
+              powershell -ExecutionPolicy Bypass -File tools/screenshots.ps1 -OutDir screenshots `
+                -Suffix "-$($theme.Name)-$language" -ExtraArgs @('--dry-run', '--language', $language)
+            }
+          }
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: windows-screenshots
+          path: screenshots/*.png

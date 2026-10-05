@@ -1,7 +1,8 @@
 # Captures docs/menu.png (tray menu) and docs/setup.png (first-run window) for the README.
 # Quit the running Apple Music Scrobbler first (the menu screenshot needs a real, connected instance).
 # Usage: powershell -ExecutionPolicy Bypass -File tools\screenshots.ps1
-param([string]$Exe)
+# CI (.github/workflows/screenshots.yml) uses -OutDir, -Suffix and -ExtraArgs --dry-run (no Last.fm login there).
+param([string]$Exe, [string]$OutDir, [string]$Suffix = '', [string[]]$ExtraArgs = @())
 $ErrorActionPreference = 'Stop'
 $root = Split-Path $PSScriptRoot
 if (-not $Exe) { $Exe = Join-Path $root 'src\AppleMusicScrobbler\bin\Release\net48\AppleMusicScrobbler.exe' }
@@ -60,6 +61,7 @@ function Capture([string[]]$Arguments, [int]$WaitSeconds, [string]$Path) {
 if (Get-Process AppleMusicScrobbler -ErrorAction SilentlyContinue) {
     throw 'Quit Apple Music Scrobbler first (tray icon > Quit), then run this again.'
 }
-$docs = Join-Path $root 'docs'
-Capture @('--show-setup') 3 (Join-Path $docs 'setup.png')
-Capture @('--open-menu') 7 (Join-Path $docs 'menu.png')
+$docs = if ($OutDir) { $OutDir } else { Join-Path $root 'docs' }
+New-Item -ItemType Directory -Force $docs | Out-Null
+Capture (@('--show-setup') + $ExtraArgs) 3 (Join-Path $docs "setup$Suffix.png")
+Capture (@('--open-menu') + $ExtraArgs) 7 (Join-Path $docs "menu$Suffix.png")
