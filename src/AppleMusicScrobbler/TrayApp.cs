@@ -72,6 +72,18 @@ namespace AppleMusicScrobbler
                 cleanItem.Checked = _settings.CleanTitles;
                 SaveSettings();
             };
+            var mainArtistItem = new ToolStripMenuItem("Scrobble only the main artist of collaborations")
+            {
+                Checked = settings.MainArtistOnly,
+                ToolTipText = "“Joji & BENEE” is scrobbled as “Joji”. Bands like “Simon & Garfunkel” are left alone (Last.fm's listener counts tell them apart).",
+            };
+            mainArtistItem.Click += (s, e) =>
+            {
+                _settings.MainArtistOnly = !_settings.MainArtistOnly;
+                mainArtistItem.Checked = _settings.MainArtistOnly;
+                SaveSettings();
+                Log.Write(_settings.MainArtistOnly ? "Scrobbling only the main artist of collaborations" : "Scrobbling full artist credits");
+            };
             _discordItem = new ToolStripMenuItem("Show “Listening to” on Discord", null, (s, e) => ToggleDiscord())
             {
                 Checked = settings.ShowOnDiscord,
@@ -82,6 +94,7 @@ namespace AppleMusicScrobbler
                 _startupItem,
                 _discordItem,
                 cleanItem,
+                mainArtistItem,
                 _checkUpdatesItem,
                 new ToolStripSeparator(),
                 new ToolStripMenuItem("Switch Last.fm account...", null, (s, e) => Reconnect()),

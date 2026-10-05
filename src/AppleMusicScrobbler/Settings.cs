@@ -23,6 +23,8 @@ namespace AppleMusicScrobbler
         public bool CheckForUpdates { get; set; } = true;
         /// <summary>Remove "Remaster", "Deluxe Edition", "- Single" etc. from titles (see TitleCleaner).</summary>
         public bool CleanTitles { get; set; } = true;
+        /// <summary>Scrobble collaborations ("Joji &amp; BENEE") as their first artist (see MainArtist).</summary>
+        public bool MainArtistOnly { get; set; }
         /// <summary>Show "Listening to" with the current song on Discord (when Discord is running).</summary>
         public bool ShowOnDiscord { get; set; } = true;
         /// <summary>Last version we showed an update notification for, so it's only shown once.</summary>

@@ -26,6 +26,7 @@ final class MenuBarApp: NSObject, NSMenuDelegate {
     private let startupItem = NSMenuItem(title: "Start at Login", action: #selector(toggleStartup), keyEquivalent: "")
     private let discordItem = NSMenuItem(title: "Show \u{201C}Listening to\u{201D} on Discord", action: #selector(toggleDiscord), keyEquivalent: "")
     private let cleanItem = NSMenuItem(title: "Clean Up Titles (Remove \u{201C}Remaster\u{201D}, \u{201C}- Single\u{201D}\u{2026})", action: #selector(toggleClean), keyEquivalent: "")
+    private let mainArtistItem = NSMenuItem(title: "Scrobble Only the Main Artist of Collaborations", action: #selector(toggleMainArtist), keyEquivalent: "")
     private let checkUpdatesItem = NSMenuItem(title: "Check for Updates Automatically", action: #selector(toggleUpdateChecks), keyEquivalent: "")
 
     private var timer: Timer?
@@ -92,6 +93,8 @@ final class MenuBarApp: NSObject, NSMenuDelegate {
         }
 
         nowItem.isEnabled = false
+        mainArtistItem.toolTip = "\u{201C}Joji & BENEE\u{201D} is scrobbled as \u{201C}Joji\u{201D}. Bands like \u{201C}Simon & Garfunkel\u{201D} are left alone (Last.fm's listener counts tell them apart)."
+        cleanItem.toolTip = "\u{201C}Song [2022 Remaster]\u{201D} is scrobbled as \u{201C}Song\u{201D}, \u{201C}Album (Deluxe Edition)\u{201D} as \u{201C}Album\u{201D}"
         lastItem.isEnabled = false
         updateItem.isHidden = true
         musicAccessItem.isHidden = true
@@ -99,7 +102,7 @@ final class MenuBarApp: NSObject, NSMenuDelegate {
         discordItem.isHidden = !DiscordPresence.available
 
         let options = NSMenu()
-        for item in [startupItem, discordItem, cleanItem, checkUpdatesItem] { options.addItem(item) }
+        for item in [startupItem, discordItem, cleanItem, mainArtistItem, checkUpdatesItem] { options.addItem(item) }
         options.addItem(.separator())
         options.addItem(withTitle: "Switch Last.fm Account\u{2026}", action: #selector(reconnect), keyEquivalent: "")
         options.addItem(withTitle: "Open Log", action: #selector(openLog), keyEquivalent: "")
@@ -204,6 +207,7 @@ final class MenuBarApp: NSObject, NSMenuDelegate {
         discordItem.state = settings.showOnDiscord ? .on : .off
         setTitle(discordItem, "Show \u{201C}Listening to\u{201D} on Discord" + (settings.showOnDiscord && !discord.isConnected ? " (Waiting for Discord)" : ""))
         cleanItem.state = settings.cleanTitles ? .on : .off
+        mainArtistItem.state = settings.mainArtistOnly ? .on : .off
         checkUpdatesItem.state = settings.checkForUpdates ? .on : .off
         musicAccessItem.isHidden = reader.access == .granted || reader.access == .unknown
         setTitle(musicAccessItem, reader.access == .denied ? "Music Access Is Off (Repeats May Be Missed)\u{2026}" : "Allow Access to Music\u{2026}")
@@ -274,6 +278,12 @@ final class MenuBarApp: NSObject, NSMenuDelegate {
 
     @objc private func toggleClean() {
         settings.cleanTitles.toggle()
+        updateUi()
+    }
+
+    @objc private func toggleMainArtist() {
+        settings.mainArtistOnly.toggle()
+        Log.write(settings.mainArtistOnly ? "Scrobbling only the main artist of collaborations" : "Scrobbling full artist credits")
         updateUi()
     }
 

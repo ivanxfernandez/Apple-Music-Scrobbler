@@ -13,6 +13,7 @@ public final class Scrobbler {
     private var queue: [QueuedScrobble]
 
     private let tracker = PlayTracker()
+    private let mainArtist: MainArtistResolver
     private var lastUpdate = Date()
     private var nextSend = Date.distantPast
     private var sending = false
@@ -32,6 +33,7 @@ public final class Scrobbler {
         self.settings = settings
         self.api = api
         self.dryRun = dryRun
+        mainArtist = MainArtistResolver(api: api)
         queueURL = folder.appendingPathComponent("queue.json")
         queue = dryRun ? [] : Self.loadQueue(queueURL)
         if !queue.isEmpty { Log.write("\(queue.count) unsent scrobble(s) from last time") }
@@ -46,7 +48,9 @@ public final class Scrobbler {
         current = np
 
         let events = tracker.update(np, elapsedSeconds: elapsed, unixNow: Int64(now.timeIntervalSince1970))
-        if !settings.paused, let np {
+        if !settings.paused, var np {
+            // Only what's sent changes; the tracker and Discord keep the full credit.
+            if settings.mainArtistOnly && np.isValid { np.artist = mainArtist.resolve(np.artist) }
             if events.nowPlaying { sendNowPlaying(np) }
             if let startedAt = events.scrobbleAt { enqueue(np, startedAt: startedAt) }
         }

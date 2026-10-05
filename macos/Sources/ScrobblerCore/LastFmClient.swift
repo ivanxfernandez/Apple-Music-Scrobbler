@@ -71,6 +71,20 @@ public final class LastFmClient {
         _ = try await call("track.love", ["artist": artist, "track": title], withSession: true)
     }
 
+    /// How many people listen to an artist on Last.fm (exact name, no autocorrect); 0 if Last.fm doesn't know it.
+    public func artistListeners(_ artist: String) async throws -> Int {
+        let url = URL(string: "\(Self.apiUrl.absoluteString)?method=artist.getInfo&autocorrect=0&artist=\(Http.escape(artist))&api_key=\(Http.escape(settings.effectiveApiKey))")!
+        let (body, response) = try await Http.session.data(from: url)
+        let status = (response as? HTTPURLResponse)?.statusCode ?? 0
+        guard let root = (try? XMLDocument(data: body))?.rootElement() else {
+            throw LastFmError(code: 0, message: "Unexpected response from Last.fm (HTTP \(status))")
+        }
+        if root.attribute(forName: "status")?.stringValue == "ok" { return Int(text(root, "artist/stats/listeners")) ?? 0 }
+        let code = Int(root.elements(forName: "error").first?.attribute(forName: "code")?.stringValue ?? "") ?? 0
+        if code == 6 { return 0 } // artist not found
+        throw LastFmError(code: code, message: root.elements(forName: "error").first?.stringValue ?? "Unknown Last.fm error")
+    }
+
     /// Sends up to 50 scrobbles. Returns a description of each one Last.fm accepted but ignored.
     public func scrobble(_ batch: [QueuedScrobble]) async throws -> [String] {
         var args: [String: String] = [:]

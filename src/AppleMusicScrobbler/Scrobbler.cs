@@ -32,6 +32,7 @@ namespace AppleMusicScrobbler
         readonly List<QueuedScrobble> _queue;
 
         readonly PlayTracker _tracker = new PlayTracker();
+        readonly MainArtistResolver _mainArtist;
         DateTime _lastUpdate = DateTime.UtcNow;
         DateTime _nextSend = DateTime.MinValue;
         bool _sending;
@@ -54,6 +55,7 @@ namespace AppleMusicScrobbler
             _settings = settings;
             _api = api;
             _dryRun = dryRun;
+            _mainArtist = new MainArtistResolver(api);
             _queue = dryRun ? new List<QueuedScrobble>() : LoadQueue();
             if (_queue.Count > 0) Log.Write($"{_queue.Count} unsent scrobble(s) from last time");
         }
@@ -68,10 +70,22 @@ namespace AppleMusicScrobbler
             Current = np;
 
             var events = _tracker.Update(np, elapsed, DateTimeOffset.UtcNow.ToUnixTimeSeconds());
-            if (!_settings.Paused)
+            if (!_settings.Paused && np != null)
             {
-                if (events.NowPlaying) _ = SendNowPlayingAsync(np);
-                if (events.ScrobbleAt.HasValue) Enqueue(np, events.ScrobbleAt.Value);
+                // Only what's sent changes; the tracker and Discord keep the full credit.
+                var output = np;
+                if (_settings.MainArtistOnly && np.IsValid)
+                    output = new NowPlaying
+                    {
+                        Artist = _mainArtist.Resolve(np.Artist),
+                        Title = np.Title,
+                        Album = np.Album,
+                        Duration = np.Duration,
+                        Position = np.Position,
+                        IsPlaying = np.IsPlaying,
+                    };
+                if (events.NowPlaying) _ = SendNowPlayingAsync(output);
+                if (events.ScrobbleAt.HasValue) Enqueue(output, events.ScrobbleAt.Value);
             }
 
             if (_queue.Count > 0 && !_sending && now >= _nextSend)

@@ -12,7 +12,7 @@ public final class Settings {
         self.defaults = defaults
         secretsURL = folder.appendingPathComponent("secrets.json")
         secrets = (try? JSONDecoder().decode([String: String].self, from: Data(contentsOf: secretsURL))) ?? [:]
-        defaults.register(defaults: ["CheckForUpdates": true, "CleanTitles": true, "ShowOnDiscord": true])
+        defaults.register(defaults: ["CheckForUpdates": true, "CleanTitles": true, "ShowOnDiscord": true, "MainArtistOnly": false])
     }
 
     /// User-supplied API key; empty means use the one built into the app.
@@ -36,6 +36,11 @@ public final class Settings {
     public var cleanTitles: Bool {
         get { defaults.bool(forKey: "CleanTitles") }
         set { defaults.set(newValue, forKey: "CleanTitles") }
+    }
+    /// Scrobble collaborations ("Joji & BENEE") as their first artist (see MainArtist).
+    public var mainArtistOnly: Bool {
+        get { defaults.bool(forKey: "MainArtistOnly") }
+        set { defaults.set(newValue, forKey: "MainArtistOnly") }
     }
     /// Show "Listening to" with the current song on Discord (when Discord is running).
     public var showOnDiscord: Bool {
