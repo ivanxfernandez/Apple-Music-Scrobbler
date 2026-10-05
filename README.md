@@ -12,6 +12,7 @@ The Apple Music app on Windows 11/10 doesn't support Last.fm. This small tray ap
 - **Scrobbles** follow Last.fm's rules: songs longer than 30 seconds count once you've played half of them or 4 minutes, whichever comes first
 - **Clean titles**: *"Song [2022 Remaster]"* is scrobbled as *"Song"* and *"Album (Deluxe Edition)"* as *"Album"*, so your plays land on the normal Last.fm pages (this can be turned off)
 - **Works offline**: scrobbles are saved and sent when you're back online
+- **Discord status**: *Listening to Apple Music* on your Discord profile, with the song, artist, album art, a progress bar and an Apple Music link (this can be turned off)
 - **♥ Love** the current song from the tray menu
 - **Update notifications** when a new version is released
 - A single ~80 KB `.exe`. There's no installer and nothing else to download, because it uses the .NET Framework 4.8 that already comes with Windows 10/11
@@ -55,6 +56,7 @@ The app lives in the system tray as a red note icon (you may need to click the *
 | Pause scrobbling | Stops sending anything (the icon turns grey) |
 | Open my Last.fm profile | Opens your profile in the browser |
 | Options › Start with Windows | Runs automatically when you sign in |
+| Options › Show "Listening to" on Discord | Shows the current song on your Discord profile while the Discord app is running (on by default; hidden while paused) |
 | Options › Clean up titles | Removes "Remaster", "Deluxe Edition", "- Single" and similar from names (on by default) |
 | Options › Check for updates automatically | Checks GitHub once a day (on by default) |
 | Options › Switch Last.fm account... | Reconnects, or connects a different account |
@@ -65,6 +67,7 @@ The app lives in the system tray as a red note icon (you may need to click the *
 - Reads the Windows **System Media Transport Controls** session belonging to Apple Music (`AppleInc.AppleMusicWin`), polling once a second.
 - Apple Music reports the artist field as `Artist — Album` and leaves the album empty. The app splits that field back into artist and album.
 - Calls the [Last.fm API](https://www.last.fm/api) directly: `track.updateNowPlaying`, `track.scrobble` (in batches of up to 50) and `track.love`. Sign-in uses Last.fm's [desktop auth flow](https://www.last.fm/api/desktopauth), so the app never sees your password.
+- The Discord status goes through the Discord desktop app's local Rich Presence connection. Nothing is sent to Discord's servers by this app directly. Album art and Apple Music links come from Apple's public [iTunes Search API](https://performance-partners.apple.com/search-api).
 
 ### Your data
 
@@ -74,7 +77,7 @@ Everything is stored in `%APPDATA%\AppleMusicScrobbler\`:
 - `queue.xml`: scrobbles waiting to be sent
 - `scrobbler.log`: activity log, capped at about 1 MB
 
-The app talks to `ws.audioscrobbler.com` (Last.fm's API) and, for update checks, `api.github.com`.
+The app talks to `ws.audioscrobbler.com` (Last.fm's API), `itunes.apple.com` (album art for Discord), `api.github.com` (update checks), and the Discord app on your PC.
 
 ## Known limitations
 
@@ -102,6 +105,7 @@ Optional build properties:
 | --- | --- |
 | `-p:LastFmApiKey=…` `-p:LastFmApiSecret=…` | Bake in a Last.fm API key so users skip creating their own. Pass it only at build time and keep it out of the repository. |
 | `-p:GitHubRepo=owner/repo` | Turn on update checks against that repository's releases. |
+| `-p:DiscordClientId=…` | Use a different Discord application for the status (its name is what appears after "Listening to"). An empty value hides the feature. |
 | `-p:Version=1.2.3` | Set the version. |
 
 ### Releasing

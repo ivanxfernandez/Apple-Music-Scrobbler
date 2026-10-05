@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.2.0
+
+- **Discord status**: shows *Listening to Apple Music* on your Discord profile with the song (linked to Apple Music), artist, album art, a progress bar, and *Listen on Apple Music* / *Last.fm profile* buttons. It's hidden while paused, reconnects automatically when Discord starts, and can be turned off in *Options*.
+
 ## 1.1.0
 
 - **Title cleanup**: "Remaster", "Deluxe Edition", "- Single" and similar tags are removed before scrobbling, so plays land on the normal Last.fm track and album pages. Turn it off with *Options › Clean up titles*.
