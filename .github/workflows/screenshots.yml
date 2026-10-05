@@ -24,6 +24,10 @@ jobs:
       - name: Screenshots
         shell: pwsh
         run: |
+          # "Pause scrobbling" checked, so the menu shows how check marks look.
+          $data = Join-Path $env:APPDATA 'AppleMusicScrobbler'
+          New-Item -ItemType Directory -Force $data | Out-Null
+          Set-Content (Join-Path $data 'settings.xml') '<Settings><Paused>true</Paused></Settings>'
           $personalize = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Themes\Personalize'
           New-Item -Path $personalize -Force | Out-Null
           foreach ($theme in @(@{ Name = 'light'; Value = 1 }, @{ Name = 'dark'; Value = 0 })) {
