@@ -50,7 +50,7 @@ final class SetupModel: ObservableObject {
             let key = apiKey.trimmingCharacters(in: .whitespacesAndNewlines)
             let secret = apiSecret.trimmingCharacters(in: .whitespacesAndNewlines)
             if key.isEmpty || secret.isEmpty {
-                show("Paste both the API key and the Shared secret first.", error: true)
+                show(L("Paste both the API key and the Shared secret first."), error: true)
                 return
             }
             settings.apiKey = key
@@ -58,20 +58,20 @@ final class SetupModel: ObservableObject {
         }
 
         busy = true
-        show("Contacting Last.fm...")
+        show(L("Contacting Last.fm..."))
         Task {
             do {
                 let token = try await api.getToken()
                 self.token = token
                 NSWorkspace.shared.open(api.authUrl(token: token))
-                show("Waiting for you to click \u{201C}Yes, allow access\u{201D} on the Last.fm page in your browser...")
+                show(L("Waiting for you to click \u{201C}Yes, allow access\u{201D} on the Last.fm page in your browser..."))
                 waitingForApproval = true
                 pollTask = Task { await poll(token: token, issued: Date()) }
             } catch let error as LastFmError where error.code == 10 || error.code == 26 {
-                show("Last.fm didn't accept that API key. Check you copied the API key and Shared secret correctly.", error: true)
+                show(L("Last.fm didn't accept that API key. Check you copied the API key and Shared secret correctly."), error: true)
                 busy = false
             } catch {
-                show("Couldn't reach Last.fm: \(error.localizedDescriptionIfUseful)", error: true)
+                show(L("Couldn't reach Last.fm: %@", error.localizedDescriptionIfUseful), error: true)
                 busy = false
             }
         }
@@ -99,14 +99,14 @@ final class SetupModel: ObservableObject {
                 onConnected?()
                 return
             } catch let error as LastFmError where error.code == 14 { // not approved yet
-                if Date().timeIntervalSince(issued) > 600 { return fail("Timed out waiting for approval. Click Connect to try again.") }
+                if Date().timeIntervalSince(issued) > 600 { return fail(L("Timed out waiting for approval. Click Connect to try again.")) }
             } catch let error as LastFmError where error.code == 4 || error.code == 15 { // token expired/invalid
-                return fail("That approval link expired. Click Connect to try again.")
+                return fail(L("That approval link expired. Click Connect to try again."))
             } catch let error as LastFmError where error.code == 13 {
-                return fail("Last.fm rejected the Shared secret. Check you copied it correctly.")
+                return fail(L("Last.fm rejected the Shared secret. Check you copied it correctly."))
             } catch {
                 // Network blip: keep trying for a while.
-                if Date().timeIntervalSince(issued) > 600 { return fail("Couldn't reach Last.fm: \(error.localizedDescriptionIfUseful)") }
+                if Date().timeIntervalSince(issued) > 600 { return fail(L("Couldn't reach Last.fm: %@", error.localizedDescriptionIfUseful)) }
             }
         }
     }
@@ -129,53 +129,53 @@ struct SetupView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
-            Text("Connect to Last.fm").font(.title).bold()
-            Text("This app watches what the Music app is playing and adds it to your Last.fm profile.")
+            Text(L("Connect to Last.fm")).font(.title).bold()
+            Text(L("This app watches what the Music app is playing and adds it to your Last.fm profile."))
 
             if model.needsApiKey {
-                step(1, "Get a free Last.fm API key")
-                Text("Last.fm requires every app to have one. It takes a minute: fill in any application name and description, leave \u{201C}Callback URL\u{201D} empty, and submit. Then copy the API key and Shared secret here.")
-                Link("Create a Last.fm API account", destination: SetupModel.createApiAccountUrl)
+                step(1, L("Get a free Last.fm API key"))
+                Text(L("Last.fm requires every app to have one. It takes a minute: fill in any application name and description, leave \u{201C}Callback URL\u{201D} empty, and submit. Then copy the API key and Shared secret here."))
+                Link(L("Create a Last.fm API account"), destination: SetupModel.createApiAccountUrl)
                 Grid(alignment: .leading) {
                     GridRow {
-                        Text("API key")
+                        Text(L("API key"))
                         TextField("", text: $model.apiKey).frame(width: 280)
                     }
                     GridRow {
-                        Text("Shared secret")
+                        Text(L("Shared secret"))
                         SecureField("", text: $model.apiSecret).frame(width: 280)
                     }
                 }
                 .disabled(model.busy)
             }
 
-            step(model.needsApiKey ? 2 : 1, "Allow access to Music")
-            Text("So repeated songs are counted, the app reads how far into a song you are. macOS asks you once: click Allow.")
+            step(model.needsApiKey ? 2 : 1, L("Allow access to Music"))
+            Text(L("So repeated songs are counted, the app reads how far into a song you are. macOS asks you once: click Allow."))
             HStack {
                 switch model.musicAccess {
                 case .granted:
-                    Label("Allowed", systemImage: "checkmark.circle.fill").foregroundStyle(.green)
+                    Label(L("Allowed"), systemImage: "checkmark.circle.fill").foregroundStyle(.green)
                 case .denied:
-                    Label("Not allowed. Scrobbling still works, but repeats may be missed.", systemImage: "exclamationmark.circle")
+                    Label(L("Not allowed. Scrobbling still works, but repeats may be missed."), systemImage: "exclamationmark.circle")
                         .foregroundStyle(.secondary)
-                    Button("Open Privacy Settings") { model.openPrivacySettings() }
+                    Button(L("Open Privacy Settings")) { model.openPrivacySettings() }
                 default:
-                    Button("Allow Access to Music\u{2026}") { model.allowMusic() }
+                    Button(L("Allow Access to Music\u{2026}")) { model.allowMusic() }
                 }
             }
 
-            step(model.needsApiKey ? 3 : 2, "Allow access to your Last.fm account")
-            Text("Click Connect. Last.fm opens in your browser: click \u{201C}Yes, allow access\u{201D} there and this window finishes by itself.")
+            step(model.needsApiKey ? 3 : 2, L("Allow access to your Last.fm account"))
+            Text(L("Click Connect. Last.fm opens in your browser: click \u{201C}Yes, allow access\u{201D} there and this window finishes by itself."))
 
-            Toggle("Start automatically when I log in", isOn: $model.startAtLogin)
+            Toggle(L("Start automatically when I log in"), isOn: $model.startAtLogin)
 
             HStack {
                 if model.waitingForApproval {
-                    Button("Open the Last.fm page again") { model.reopenApprovalPage() }.buttonStyle(.link)
+                    Button(L("Open the Last.fm page again")) { model.reopenApprovalPage() }.buttonStyle(.link)
                 }
                 Spacer()
-                Button("Cancel", action: onCancel).keyboardShortcut(.cancelAction)
-                Button("Connect") { model.connect() }
+                Button(L("Cancel"), action: onCancel).keyboardShortcut(.cancelAction)
+                Button(L("Connect")) { model.connect() }
                     .keyboardShortcut(.defaultAction)
                     .disabled(model.busy)
             }

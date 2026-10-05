@@ -16,23 +16,23 @@ final class MenuBarApp: NSObject, NSMenuDelegate {
     private let updater = Updater()
 
     private let statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
-    private let nowItem = NSMenuItem(title: "Nothing playing", action: nil, keyEquivalent: "")
-    private let lastItem = NSMenuItem(title: "Nothing scrobbled yet", action: nil, keyEquivalent: "")
-    private let recentItem = NSMenuItem(title: "Recent Scrobbles", action: nil, keyEquivalent: "")
+    private let nowItem = NSMenuItem(title: L("Nothing playing"), action: nil, keyEquivalent: "")
+    private let lastItem = NSMenuItem(title: L("Nothing scrobbled yet"), action: nil, keyEquivalent: "")
+    private let recentItem = NSMenuItem(title: L("Recent Scrobbles"), action: nil, keyEquivalent: "")
     private let recentMenu = NSMenu()
-    private let updateItem = NSMenuItem(title: "Update available", action: #selector(openUpdate), keyEquivalent: "")
-    private let musicAccessItem = NSMenuItem(title: "Allow Access to Music\u{2026}", action: #selector(allowMusic), keyEquivalent: "")
-    private let loveItem = NSMenuItem(title: "\u{2665} Love This Song on Last.fm", action: #selector(loveCurrent), keyEquivalent: "")
-    private let ignoreItem = NSMenuItem(title: "Don\u{2019}t Scrobble This Artist", action: #selector(ignoreCurrentArtist), keyEquivalent: "")
-    private let ignoredListItem = NSMenuItem(title: "Ignored Artists", action: nil, keyEquivalent: "")
+    private let updateItem = NSMenuItem(title: L("Update available"), action: #selector(openUpdate), keyEquivalent: "")
+    private let musicAccessItem = NSMenuItem(title: L("Allow Access to Music\u{2026}"), action: #selector(allowMusic), keyEquivalent: "")
+    private let loveItem = NSMenuItem(title: L("\u{2665} Love This Song on Last.fm"), action: #selector(loveCurrent), keyEquivalent: "")
+    private let ignoreItem = NSMenuItem(title: L("Don\u{2019}t Scrobble This Artist"), action: #selector(ignoreCurrentArtist), keyEquivalent: "")
+    private let ignoredListItem = NSMenuItem(title: L("Ignored Artists"), action: nil, keyEquivalent: "")
     private let ignoredMenu = NSMenu()
-    private let pauseItem = NSMenuItem(title: "Pause Scrobbling", action: #selector(togglePause), keyEquivalent: "")
-    private let startupItem = NSMenuItem(title: "Start at Login", action: #selector(toggleStartup), keyEquivalent: "")
-    private let discordItem = NSMenuItem(title: "Show \u{201C}Listening to\u{201D} on Discord", action: #selector(toggleDiscord), keyEquivalent: "")
-    private let cleanItem = NSMenuItem(title: "Clean Up Titles (Remove \u{201C}Remaster\u{201D}, \u{201C}- Single\u{201D}\u{2026})", action: #selector(toggleClean), keyEquivalent: "")
-    private let mainArtistItem = NSMenuItem(title: "Scrobble Only the Main Artist of Collaborations", action: #selector(toggleMainArtist), keyEquivalent: "")
-    private let catchUpItem = NSMenuItem(title: "Catch Up on Plays from Other Devices", action: #selector(toggleCatchUp), keyEquivalent: "")
-    private let checkUpdatesItem = NSMenuItem(title: "Check for Updates Automatically", action: #selector(toggleUpdateChecks), keyEquivalent: "")
+    private let pauseItem = NSMenuItem(title: L("Pause Scrobbling"), action: #selector(togglePause), keyEquivalent: "")
+    private let startupItem = NSMenuItem(title: L("Start at Login"), action: #selector(toggleStartup), keyEquivalent: "")
+    private let discordItem = NSMenuItem(title: L("Show \u{201C}Listening to\u{201D} on Discord"), action: #selector(toggleDiscord), keyEquivalent: "")
+    private let cleanItem = NSMenuItem(title: L("Clean Up Titles (Remove \u{201C}Remaster\u{201D}, \u{201C}- Single\u{201D}\u{2026})"), action: #selector(toggleClean), keyEquivalent: "")
+    private let mainArtistItem = NSMenuItem(title: L("Scrobble Only the Main Artist of Collaborations"), action: #selector(toggleMainArtist), keyEquivalent: "")
+    private let catchUpItem = NSMenuItem(title: L("Catch Up on Plays from Other Devices"), action: #selector(toggleCatchUp), keyEquivalent: "")
+    private let checkUpdatesItem = NSMenuItem(title: L("Check for Updates Automatically"), action: #selector(toggleUpdateChecks), keyEquivalent: "")
 
     private var timer: Timer?
     private var catchUpTimer: Timer?
@@ -101,12 +101,12 @@ final class MenuBarApp: NSObject, NSMenuDelegate {
         }
         if !settings.lastRunVersion.isEmpty && settings.lastRunVersion != AppInfo.version {
             Log.write("Updated from \(settings.lastRunVersion) to \(AppInfo.version)")
-            Notifier.shared.show("Updated to \(AppInfo.version)", "\(AppInfo.name) is up to date. See what's new on the release page.",
+            Notifier.shared.show(L("Updated to %@", AppInfo.version), L("%@ is up to date. See what's new on the release page.", AppInfo.name),
                                  url: AppInfo.repoUrl.isEmpty ? nil : URL(string: "\(AppInfo.repoUrl)/releases/tag/v\(AppInfo.version)"))
         }
         settings.lastRunVersion = AppInfo.version
         if justConnected {
-            Notifier.shared.show("Connected to Last.fm", "Scrobbling Music as \(settings.username). I'll be here in the menu bar.")
+            Notifier.shared.show(L("Connected to Last.fm"), L("Scrobbling Music as %@. I'll be here in the menu bar.", settings.username))
         }
         tick()
     }
@@ -144,9 +144,9 @@ final class MenuBarApp: NSObject, NSMenuDelegate {
         }
 
         nowItem.isEnabled = false
-        mainArtistItem.toolTip = "\u{201C}Joji & BENEE\u{201D} is scrobbled as \u{201C}Joji\u{201D}. Bands like \u{201C}Simon & Garfunkel\u{201D} are left alone (Last.fm's listener counts tell them apart)."
-        catchUpItem.toolTip = "Scrobbles songs from your library that you played on your iPhone or iPad, from Music's play history (synced through iCloud)."
-        cleanItem.toolTip = "\u{201C}Song [2022 Remaster]\u{201D} is scrobbled as \u{201C}Song\u{201D}, \u{201C}Album (Deluxe Edition)\u{201D} as \u{201C}Album\u{201D}"
+        mainArtistItem.toolTip = L("\u{201C}Joji & BENEE\u{201D} is scrobbled as \u{201C}Joji\u{201D}. Bands like \u{201C}Simon & Garfunkel\u{201D} are left alone (Last.fm's listener counts tell them apart).")
+        catchUpItem.toolTip = L("Scrobbles songs from your library that you played on your iPhone or iPad, from Music's play history (synced through iCloud).")
+        cleanItem.toolTip = L("\u{201C}Song [2022 Remaster]\u{201D} is scrobbled as \u{201C}Song\u{201D}, \u{201C}Album (Deluxe Edition)\u{201D} as \u{201C}Album\u{201D}")
         lastItem.isEnabled = false
         updateItem.isHidden = true
         musicAccessItem.isHidden = true
@@ -159,9 +159,9 @@ final class MenuBarApp: NSObject, NSMenuDelegate {
         ignoredListItem.submenu = ignoredMenu
         options.addItem(ignoredListItem)
         options.addItem(.separator())
-        options.addItem(withTitle: "Switch Last.fm Account\u{2026}", action: #selector(reconnect), keyEquivalent: "")
-        options.addItem(withTitle: "Open Log", action: #selector(openLog), keyEquivalent: "")
-        let optionsItem = NSMenuItem(title: "Options", action: nil, keyEquivalent: "")
+        options.addItem(withTitle: L("Switch Last.fm Account\u{2026}"), action: #selector(reconnect), keyEquivalent: "")
+        options.addItem(withTitle: L("Open Log"), action: #selector(openLog), keyEquivalent: "")
+        let optionsItem = NSMenuItem(title: L("Options"), action: nil, keyEquivalent: "")
         optionsItem.submenu = options
 
         let menu = NSMenu()
@@ -178,12 +178,12 @@ final class MenuBarApp: NSObject, NSMenuDelegate {
         menu.addItem(loveItem)
         menu.addItem(ignoreItem)
         menu.addItem(pauseItem)
-        menu.addItem(withTitle: "Open My Last.fm Profile", action: #selector(openProfile), keyEquivalent: "")
+        menu.addItem(withTitle: L("Open My Last.fm Profile"), action: #selector(openProfile), keyEquivalent: "")
         menu.addItem(optionsItem)
         menu.addItem(.separator())
-        menu.addItem(withTitle: "Report a Problem\u{2026}", action: #selector(reportProblem), keyEquivalent: "")
-        menu.addItem(withTitle: "About \(AppInfo.name)", action: #selector(showAbout), keyEquivalent: "")
-        menu.addItem(withTitle: "Quit", action: #selector(quit), keyEquivalent: "q")
+        menu.addItem(withTitle: L("Report a Problem\u{2026}"), action: #selector(reportProblem), keyEquivalent: "")
+        menu.addItem(withTitle: L("About %@", AppInfo.name), action: #selector(showAbout), keyEquivalent: "")
+        menu.addItem(withTitle: L("Quit"), action: #selector(quit), keyEquivalent: "q")
         for item in menu.items + options.items where item.action != nil { item.target = self }
         menu.delegate = self
         statusItem.menu = menu
@@ -201,7 +201,7 @@ final class MenuBarApp: NSObject, NSMenuDelegate {
     private func buildIgnoredMenu() {
         ignoredMenu.removeAllItems()
         let artists = settings.ignoredArtists
-        let hint = NSMenuItem(title: artists.isEmpty ? "No ignored artists. Use \u{201C}Don\u{2019}t Scrobble\u{201D} while one plays." : "Not sent to Last.fm or shown on Discord. Click to undo:",
+        let hint = NSMenuItem(title: artists.isEmpty ? L("No ignored artists. Use \u{201C}Don\u{2019}t Scrobble\u{201D} while one plays.") : L("Not sent to Last.fm or shown on Discord. Click to undo:"),
                               action: nil, keyEquivalent: "")
         hint.isEnabled = false
         ignoredMenu.addItem(hint)
@@ -237,7 +237,7 @@ final class MenuBarApp: NSObject, NSMenuDelegate {
         recentMenu.removeAllItems()
         let recent = scrobbler.recent
         if recent.isEmpty {
-            let none = NSMenuItem(title: "Nothing scrobbled yet", action: nil, keyEquivalent: "")
+            let none = NSMenuItem(title: L("Nothing scrobbled yet"), action: nil, keyEquivalent: "")
             none.isEnabled = false
             recentMenu.addItem(none)
         }
@@ -246,14 +246,14 @@ final class MenuBarApp: NSObject, NSMenuDelegate {
                                    action: #selector(openRecent(_:)), keyEquivalent: "")
             entry.target = self
             entry.representedObject = item.url
-            entry.toolTip = "Open on Last.fm"
+            entry.toolTip = L("Open on Last.fm")
             recentMenu.addItem(entry)
         }
 
         let pending = scrobbler.pendingScrobbles
         if !pending.isEmpty {
             recentMenu.addItem(.separator())
-            let waiting = NSMenuItem(title: pending.count == 1 ? "1 Waiting to Send" : "\(pending.count) Waiting to Send", action: nil, keyEquivalent: "")
+            let waiting = NSMenuItem(title: pending.count == 1 ? L("1 Waiting to Send") : L("%@ Waiting to Send", pending.count), action: nil, keyEquivalent: "")
             waiting.isEnabled = false
             recentMenu.addItem(waiting)
             for s in pending.suffix(5).reversed() {
@@ -261,14 +261,14 @@ final class MenuBarApp: NSObject, NSMenuDelegate {
                 entry.isEnabled = false
                 recentMenu.addItem(entry)
             }
-            let sendNow = NSMenuItem(title: "Send Now", action: #selector(sendNow), keyEquivalent: "")
+            let sendNow = NSMenuItem(title: L("Send Now"), action: #selector(sendNow), keyEquivalent: "")
             sendNow.target = self
             sendNow.isEnabled = !dryRun
             recentMenu.addItem(sendNow)
         }
 
         recentMenu.addItem(.separator())
-        let library = NSMenuItem(title: "Open My Last.fm Library", action: #selector(openLibrary), keyEquivalent: "")
+        let library = NSMenuItem(title: L("Open My Last.fm Library"), action: #selector(openLibrary), keyEquivalent: "")
         library.target = self
         recentMenu.addItem(library)
     }
@@ -291,28 +291,34 @@ final class MenuBarApp: NSObject, NSMenuDelegate {
     private func updateUi() {
         let np = scrobbler.current
         let ignored = scrobbler.currentIsIgnored
-        let playing = np.map { $0.isValid ? $0.description + ($0.isPlaying ? "" : " (paused)") + (ignored ? " (not scrobbled)" : "") : nil } ?? nil
-        setTitle(nowItem, Self.menuText(playing ?? "Nothing playing"))
-        setTitle(lastItem, scrobbler.lastScrobbled.isEmpty ? "Nothing scrobbled yet" : Self.menuText("Last scrobbled: " + scrobbler.lastScrobbled))
-        setTitle(recentItem, scrobbler.pending > 0 ? "Recent Scrobbles (\(scrobbler.pending) Waiting)" : "Recent Scrobbles")
+        let playing: String? = np.flatMap { np in
+            guard np.isValid else { return nil }
+            var text = np.description
+            if !np.isPlaying { text = L("%@ (paused)", text) }
+            if ignored { text = L("%@ (not scrobbled)", text) }
+            return text
+        }
+        setTitle(nowItem, Self.menuText(playing ?? L("Nothing playing")))
+        setTitle(lastItem, scrobbler.lastScrobbled.isEmpty ? L("Nothing scrobbled yet") : Self.menuText(L("Last scrobbled: %@", scrobbler.lastScrobbled)))
+        setTitle(recentItem, scrobbler.pending > 0 ? L("Recent Scrobbles (%@ Waiting)", scrobbler.pending) : L("Recent Scrobbles"))
         loveItem.isEnabled = np?.isValid == true && !dryRun
         ignoreItem.isEnabled = np?.isValid == true
         setTitle(ignoreItem, np?.isValid == true
-            ? Self.menuText((ignored ? "Scrobble " : "Don\u{2019}t Scrobble ") + (np?.artist ?? "") + (ignored ? " Again" : ""))
-            : "Don\u{2019}t Scrobble This Artist")
+            ? Self.menuText(ignored ? L("Scrobble %@ Again", np?.artist ?? "") : L("Don\u{2019}t Scrobble %@", np?.artist ?? ""))
+            : L("Don\u{2019}t Scrobble This Artist"))
         pauseItem.state = settings.paused ? .on : .off
         discordItem.state = settings.showOnDiscord ? .on : .off
-        setTitle(discordItem, "Show \u{201C}Listening to\u{201D} on Discord" + (settings.showOnDiscord && !discord.isConnected ? " (Waiting for Discord)" : ""))
+        setTitle(discordItem, settings.showOnDiscord && !discord.isConnected ? L("Show \u{201C}Listening to\u{201D} on Discord (Waiting for Discord)") : L("Show \u{201C}Listening to\u{201D} on Discord"))
         cleanItem.state = settings.cleanTitles ? .on : .off
         mainArtistItem.state = settings.mainArtistOnly ? .on : .off
         catchUpItem.state = settings.catchUp ? .on : .off
         checkUpdatesItem.state = settings.checkForUpdates ? .on : .off
         musicAccessItem.isHidden = reader.access == .granted || reader.access == .unknown
-        setTitle(musicAccessItem, reader.access == .denied ? "Music Access Is Off (Repeats May Be Missed)\u{2026}" : "Allow Access to Music\u{2026}")
+        setTitle(musicAccessItem, reader.access == .denied ? L("Music Access Is Off (Repeats May Be Missed)\u{2026}") : L("Allow Access to Music\u{2026}"))
 
         statusItem.button?.appearsDisabled = settings.paused
-        var tip = (settings.paused ? "Scrobbling paused\n" : "") + (playing ?? "Nothing playing")
-        if scrobbler.pending > 0 { tip += "\n\(scrobbler.pending) waiting to send" }
+        var tip = (settings.paused ? L("Scrobbling paused") + "\n" : "") + (playing ?? L("Nothing playing"))
+        if scrobbler.pending > 0 { tip += "\n" + L("%@ waiting to send", scrobbler.pending) }
         if statusItem.button?.toolTip != tip { statusItem.button?.toolTip = tip }
     }
 
@@ -330,29 +336,29 @@ final class MenuBarApp: NSObject, NSMenuDelegate {
     @objc private func openUpdate() {
         guard let update else { return }
         let alert = NSAlert()
-        alert.messageText = "Update to \(AppInfo.name) \(update.tag)?"
+        alert.messageText = L("Update to %@ %@?", AppInfo.name, update.tag)
         switch Updater.installLocation() {
         case .success where update.download != nil:
-            alert.informativeText = "The app downloads the new version, checks it, and restarts. Your settings and Last.fm login are kept."
-            alert.addButton(withTitle: "Install and Restart")
+            alert.informativeText = L("The app downloads the new version, checks it, and restarts. Your settings and Last.fm login are kept.")
+            alert.addButton(withTitle: L("Install and Restart"))
         case .failure(let reason):
-            alert.informativeText = "It can't update itself because \(reason). You can download the new version from the release page."
-            alert.addButton(withTitle: "Open Release Page")
+            alert.informativeText = L("It can't update itself because %@. You can download the new version from the release page.", reason)
+            alert.addButton(withTitle: L("Open Release Page"))
         default:
-            alert.informativeText = "You can download the new version from the release page."
-            alert.addButton(withTitle: "Open Release Page")
+            alert.informativeText = L("You can download the new version from the release page.")
+            alert.addButton(withTitle: L("Open Release Page"))
         }
-        alert.addButton(withTitle: "Later")
-        if alert.buttons.first?.title == "Install and Restart" { alert.addButton(withTitle: "Release Notes") }
+        alert.addButton(withTitle: L("Later"))
+        if alert.buttons.first?.title == L("Install and Restart") { alert.addButton(withTitle: L("Release Notes")) }
         NSApp.activate(ignoringOtherApps: true)
         switch alert.runModal() {
         case .alertFirstButtonReturn:
-            if alert.buttons.first?.title == "Install and Restart" {
-                updateItem.title = "Installing \(update.tag)\u{2026}"
+            if alert.buttons.first?.title == L("Install and Restart") {
+                updateItem.title = L("Installing %@\u{2026}", update.tag)
                 updateItem.isEnabled = false
                 updater.install(update) { [weak self] in
                     self?.updateItem.isEnabled = true
-                    self?.updateItem.title = "\u{2B06} Update Available: \(update.tag)"
+                    self?.updateItem.title = L("\u{2B06} Update Available: %@", update.tag)
                     NSWorkspace.shared.open(update.url)
                 }
             } else {
@@ -379,10 +385,10 @@ final class MenuBarApp: NSObject, NSMenuDelegate {
             do {
                 try await api.love(artist: np.artist, title: np.title)
                 Log.write("Loved: \(np)")
-                Notifier.shared.show("\u{2665} Loved on Last.fm", np.description)
+                Notifier.shared.show(L("\u{2665} Loved on Last.fm"), np.description)
             } catch {
                 Log.write("Love failed: \(error)")
-                Notifier.shared.show("Couldn't love this song", error.localizedDescriptionIfUseful)
+                Notifier.shared.show(L("Couldn't love this song"), error.localizedDescriptionIfUseful)
             }
         }
     }
@@ -428,15 +434,10 @@ final class MenuBarApp: NSObject, NSMenuDelegate {
             return
         }
         let alert = NSAlert()
-        alert.messageText = "Catch up on plays from other devices?"
-        alert.informativeText = "Songs you play on your iPhone or iPad are recorded in your Music library and synced to this Mac through iCloud. "
-            + "Every 15 minutes the app looks for plays it didn't see here and that aren't on Last.fm yet, and scrobbles them "
-            + "with the time you played them. It starts with the last 24 hours.\n\n"
-            + "\u{2022} Only songs in your library count, and only the latest play of each song.\n"
-            + "\u{2022} It needs access to Music, and your Mac has to be on.\n"
-            + "\u{2022} If you use Scan in the Last.fm iPhone app, use one or the other: the same plays could be sent twice."
-        alert.addButton(withTitle: "Turn On")
-        alert.addButton(withTitle: "Cancel")
+        alert.messageText = L("Catch up on plays from other devices?")
+        alert.informativeText = L("Songs you play on your iPhone or iPad are recorded in your Music library and synced to this Mac through iCloud. Every 15 minutes the app looks for plays it didn't see here and that aren't on Last.fm yet, and scrobbles them with the time you played them. It starts with the last 24 hours.\n\n\u{2022} Only songs in your library count, and only the latest play of each song.\n\u{2022} It needs access to Music, and your Mac has to be on.\n\u{2022} If you use Scan in the Last.fm iPhone app, use one or the other: the same plays could be sent twice.")
+        alert.addButton(withTitle: L("Turn On"))
+        alert.addButton(withTitle: L("Cancel"))
         NSApp.activate(ignoringOtherApps: true)
         guard alert.runModal() == .alertFirstButtonReturn else { return }
         settings.catchUp = true
@@ -519,9 +520,9 @@ final class MenuBarApp: NSObject, NSMenuDelegate {
     @objc private func showAbout() {
         let alert = NSAlert()
         alert.messageText = "\(AppInfo.name) \(AppInfo.version)"
-        alert.informativeText = "Scrobbles the Music app on your Mac to Last.fm.\nNot affiliated with Apple or Last.fm."
-        alert.addButton(withTitle: "OK")
-        if !AppInfo.repoUrl.isEmpty { alert.addButton(withTitle: "Open Project Page") }
+        alert.informativeText = L("Scrobbles the Music app on your Mac to Last.fm.\nNot affiliated with Apple or Last.fm.")
+        alert.addButton(withTitle: L("OK"))
+        if !AppInfo.repoUrl.isEmpty { alert.addButton(withTitle: L("Open Project Page")) }
         NSApp.activate(ignoringOtherApps: true)
         if alert.runModal() == .alertSecondButtonReturn, let url = URL(string: AppInfo.repoUrl) {
             NSWorkspace.shared.open(url)
@@ -549,27 +550,27 @@ final class MenuBarApp: NSObject, NSMenuDelegate {
         if !manual && !settings.checkForUpdates { return }
         do {
             guard let release = try await UpdateChecker.newerRelease() else {
-                if manual { Notifier.shared.show("You're up to date", "\(AppInfo.name) \(AppInfo.version) is the latest version.") }
+                if manual { Notifier.shared.show(L("You're up to date"), L("%@ %@ is the latest version.", AppInfo.name, AppInfo.version)) }
                 return
             }
             update = release
-            updateItem.title = "\u{2B06} Update Available: \(release.tag)"
+            updateItem.title = L("\u{2B06} Update Available: %@", release.tag)
             updateItem.isHidden = false
             if manual || settings.updateNotifiedFor != release.tag {
                 Log.write("Update available: \(release.tag)")
                 settings.updateNotifiedFor = release.tag
-                Notifier.shared.show("Update available", "\(AppInfo.name) \(release.tag) is out. Click to install it.", action: "install-update")
+                Notifier.shared.show(L("Update available"), L("%@ %@ is out. Click to install it.", AppInfo.name, release.tag), action: "install-update")
             }
         } catch {
             Log.write("Update check failed: \(error.localizedDescription)")
-            if manual { Notifier.shared.show("Couldn't check for updates", error.localizedDescription) }
+            if manual { Notifier.shared.show(L("Couldn't check for updates"), error.localizedDescription) }
         }
     }
 
     private func onAuthProblem() {
         if authWarningShown { return }
         authWarningShown = true
-        Notifier.shared.show("Last.fm needs you to reconnect",
-                             "Click the menu bar icon and choose Options › Switch Last.fm Account. Your scrobbles are saved until then.")
+        Notifier.shared.show(L("Last.fm needs you to reconnect"),
+                             L("Click the menu bar icon and choose Options › Switch Last.fm Account. Your scrobbles are saved until then."))
     }
 }

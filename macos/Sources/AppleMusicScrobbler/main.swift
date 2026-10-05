@@ -4,6 +4,16 @@ import ScrobblerCore
 /// --dry-run: read Music and log what would be scrobbled, without contacting Last.fm.
 let dryRun = CommandLine.arguments.contains("--dry-run")
 
+/// --language es: show the app in that language (to review a translation); default: the system's.
+if let i = CommandLine.arguments.firstIndex(of: "--language"), i + 1 < CommandLine.arguments.count {
+    Localization.language = CommandLine.arguments[i + 1]
+}
+
+/// --language es: show the app in that language (to review a translation); default: the system's.
+if let i = CommandLine.arguments.firstIndex(of: "--language"), i + 1 < CommandLine.arguments.count {
+    Localization.language = CommandLine.arguments[i + 1]
+}
+
 /// --pretend-version X.Y.Z: check for updates as if this were version X.Y.Z, to test the updater
 /// against the latest release (it offers to "update" to it). Doesn't change anything else.
 if let i = CommandLine.arguments.firstIndex(of: "--pretend-version"), i + 1 < CommandLine.arguments.count {
@@ -28,8 +38,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         if let id = Bundle.main.bundleIdentifier,
            NSRunningApplication.runningApplications(withBundleIdentifier: id).contains(where: { $0 != .current }) {
             let alert = NSAlert()
-            alert.messageText = "\(AppInfo.name) is already running."
-            alert.informativeText = "Look for the \u{266A} note icon in the menu bar."
+            alert.messageText = L("%@ is already running.", AppInfo.name)
+            alert.informativeText = L("Look for the \u{266A} note icon in the menu bar.")
             NSApp.activate(ignoringOtherApps: true)
             alert.runModal()
             NSApp.terminate(nil)

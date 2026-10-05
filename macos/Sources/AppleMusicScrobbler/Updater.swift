@@ -14,13 +14,13 @@ final class Updater {
     /// The running app, or nil when it can't replace itself (and why).
     static func installLocation() -> Result<URL, Failure> {
         let app = Bundle.main.bundleURL
-        guard app.pathExtension == "app" else { return .failure(Failure(description: "not running as an app")) }
+        guard app.pathExtension == "app" else { return .failure(Failure(description: L("not running as an app"))) }
         // Opened straight from Downloads, macOS runs a read-only copy ("App Translocation").
         if app.path.contains("/AppTranslocation/") {
-            return .failure(Failure(description: "the app is running from a temporary copy; move it to Applications first"))
+            return .failure(Failure(description: L("the app is running from a temporary copy; move it to Applications first")))
         }
         guard FileManager.default.isWritableFile(atPath: app.deletingLastPathComponent().path) else {
-            return .failure(Failure(description: "no permission to replace the app in \(app.deletingLastPathComponent().path)"))
+            return .failure(Failure(description: L("no permission to replace the app in %@", app.deletingLastPathComponent().path)))
         }
         return .success(app)
     }
@@ -36,26 +36,26 @@ final class Updater {
             } catch {
                 installing = false
                 Log.write("Update to \(release.tag) failed: \(error)")
-                Notifier.shared.show("Couldn't install the update", "\(error). Opening the download page instead.")
+                Notifier.shared.show(L("Couldn't install the update"), L("%@. Opening the download page instead.", "\(error)"))
                 fallback()
             }
         }
     }
 
     private func installNow(_ release: ReleaseInfo) async throws {
-        guard let asset = release.download else { throw Failure(description: "this release has no checked download for Mac") }
+        guard let asset = release.download else { throw Failure(description: L("this release has no checked download for Mac")) }
         let current = try Self.installLocation().get()
 
         Log.write("Downloading \(release.tag)...")
         let work = FileManager.default.temporaryDirectory.appendingPathComponent("AppleMusicScrobbler-update-\(UUID().uuidString)")
         try FileManager.default.createDirectory(at: work, withIntermediateDirectories: true)
         let (downloaded, response) = try await Http.download(asset.url)
-        guard (response as? HTTPURLResponse)?.statusCode == 200 else { throw Failure(description: "the download failed") }
+        guard (response as? HTTPURLResponse)?.statusCode == 200 else { throw Failure(description: L("the download failed")) }
         let zip = work.appendingPathComponent(asset.name)
         try FileManager.default.moveItem(at: downloaded, to: zip)
 
         let hash = SHA256.hash(data: try Data(contentsOf: zip)).map { String(format: "%02x", $0) }.joined()
-        guard hash == asset.sha256 else { throw Failure(description: "the download doesn't match the published SHA-256") }
+        guard hash == asset.sha256 else { throw Failure(description: L("the download doesn't match the published SHA-256")) }
 
         let unpacked = work.appendingPathComponent("unpacked")
         try Self.run("/usr/bin/ditto", ["-x", "-k", zip.path, unpacked.path])
@@ -63,7 +63,7 @@ final class Updater {
         guard let info = Bundle(url: new)?.infoDictionary,
               info["CFBundleIdentifier"] as? String == Bundle.main.bundleIdentifier,
               let version = AppVersion(info["CFBundleShortVersionString"] as? String ?? ""), version == release.version
-        else { throw Failure(description: "the download isn't the expected app") }
+        else { throw Failure(description: L("the download isn't the expected app")) }
         try Self.run("/usr/bin/codesign", ["--verify", "--deep", "--strict", new.path])
         // The browser marks downloads as quarantined, URLSession doesn't. Clear it in case, the way
         // Sparkle does for updates it installs, so the new version opens without the Gatekeeper prompt.
