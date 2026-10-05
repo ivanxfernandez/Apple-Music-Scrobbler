@@ -55,9 +55,21 @@ namespace AppleMusicScrobbler
                 Visible = AppInfo.GitHubRepo.Length > 0,
             };
             var options = new ToolStripMenuItem("Options");
+            var cleanItem = new ToolStripMenuItem("Clean up titles (remove “Remaster”, “- Single”…)")
+            {
+                Checked = settings.CleanTitles,
+                ToolTipText = "“Song [2022 Remaster]” is scrobbled as “Song”, “Album (Deluxe Edition)” as “Album”",
+            };
+            cleanItem.Click += (s, e) =>
+            {
+                _settings.CleanTitles = !_settings.CleanTitles;
+                cleanItem.Checked = _settings.CleanTitles;
+                SaveSettings();
+            };
             options.DropDownItems.AddRange(new ToolStripItem[]
             {
                 _startupItem,
+                cleanItem,
                 _checkUpdatesItem,
                 new ToolStripSeparator(),
                 new ToolStripMenuItem("Switch Last.fm account...", null, (s, e) => Reconnect()),

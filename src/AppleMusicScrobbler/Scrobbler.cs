@@ -72,6 +72,7 @@ namespace AppleMusicScrobbler
             _lastUpdate = now;
             if (elapsed < 0 || elapsed > 5) elapsed = 0; // clock changed or PC was asleep
 
+            if (_settings.CleanTitles) np = TitleCleaner.Apply(np);
             Current = np;
             if (np != null && np.IsValid)
             {

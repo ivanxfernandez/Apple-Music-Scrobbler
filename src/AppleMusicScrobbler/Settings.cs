@@ -20,6 +20,8 @@ namespace AppleMusicScrobbler
         public string Username { get; set; } = "";
         public bool Paused { get; set; }
         public bool CheckForUpdates { get; set; } = true;
+        /// <summary>Remove "Remaster", "Deluxe Edition", "- Single" etc. from titles (see TitleCleaner).</summary>
+        public bool CleanTitles { get; set; } = true;
         /// <summary>Last version we showed an update notification for, so it's only shown once.</summary>
         public string UpdateNotifiedFor { get; set; } = "";
 
