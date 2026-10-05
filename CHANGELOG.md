@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.6.0
+
+- **Windows: dark mode.** The tray menu and the setup window follow Windows' light/dark app setting.
+- **Loved songs show a check mark** on *♥ Love this song on Last.fm*; click it again to remove the love.
+- **Keyboard shortcut to love the current song** from any app: Ctrl+Shift+Alt+L on Windows, ⌃⌥⌘L on the Mac. On by default; turn it off in *Options* if it clashes with another app.
+- **Optional "now playing" notification** when a song starts (*Options*, off by default), with album art on the Mac.
+- A [contributor guide](CONTRIBUTING.md), including how to add a translation.
+
 ## 1.5.0
 
 - **Spanish**: the app is in Spanish when Windows or macOS is set to Spanish. Translations live in one table per platform (`src/AppleMusicScrobbler/Localization.cs`, `macos/Sources/ScrobblerCore/Localization.swift`), so other languages are easy to add.

@@ -21,6 +21,8 @@ The Apple Music app on Windows 11/10 doesn't support Last.fm, and the Music app 
 - **Ignore list** for artists you don't want on Last.fm or Discord
 - **Mac: catch up on iPhone plays**: songs from your library played on your iPhone or iPad are scrobbled too (optional)
 - **English and Spanish**, following your system language
+- **Dark mode** on Windows, following your Windows setting (the Mac app follows macOS automatically)
+- **Keyboard shortcut** to love the current song from any app
 - **Windows**: a single ~80 KB `.exe`. There's no installer and nothing else to download, because it uses the .NET Framework 4.8 that already comes with Windows 10/11
 - **Mac**: a native menu bar app of about 1 MB for macOS 13 Ventura or newer, on Apple Silicon and Intel
 
@@ -79,12 +81,14 @@ On Windows the app lives in the system tray as a red note icon (you may need to 
 | --- | --- |
 | *Now playing / Last scrobbled* | Status |
 | Recent scrobbles | The last 10 songs sent to Last.fm (click one to open it there), anything still waiting to be sent with a **Send now** button, and a link to your Last.fm library |
-| ♥ Love this song on Last.fm | Loves the current track |
+| ♥ Love this song on Last.fm | Loves the current track. Checked when it's already loved on Last.fm; click again to remove the love. Shortcut from any app: **Ctrl+Shift+Alt+L** (Windows), **⌃⌥⌘L** (Mac) |
 | Don't scrobble *artist* | Adds the current artist to the ignore list: their songs aren't sent to Last.fm or shown on Discord (collaborations led by them too). Click again to undo |
 | Pause scrobbling | Stops sending anything (the icon turns grey) |
 | Open my Last.fm profile | Opens your profile in the browser |
 | Options › Start with Windows / Start at Login | Runs automatically when you sign in |
 | Options › Show "Listening to" on Discord | Shows the current song on your Discord profile while the Discord app is running (on by default; hidden while paused) |
+| Options › Show a notification when a song starts | Off by default. On the Mac it includes the album art |
+| Options › ♥ Keyboard shortcut | Turns the love shortcut on or off (on by default). If another app already uses it, the app logs that and the menu stops showing it |
 | Options › Clean up titles | Removes "Remaster", "Deluxe Edition", "- Single" and similar from names (on by default) |
 | Options › Scrobble only the main artist of collaborations | Scrobbles *"Joji & BENEE"* as *"Joji"*, so collaborations count toward the main artist (off by default). Bands like *Simon & Garfunkel* or *Earth, Wind & Fire* are left alone: the app compares Last.fm's listener counts for the full name and the first artist, and only a collaboration's combined name has a tiny share of the first artist's listeners |
 | Options › Catch Up on Plays from Other Devices *(Mac)* | Scrobbles songs you played on your iPhone or iPad. Music records the latest play of each library song and syncs it to the Mac through iCloud (within seconds); every 15 minutes the app looks for plays it didn't see itself and that aren't on Last.fm yet, and scrobbles them with the time you played them. Only songs in your library, only the latest play of each, and the Mac has to be on. Off by default. If you use **Scan** in the Last.fm iPhone app, use one or the other |
@@ -186,7 +190,7 @@ The [Release workflow](.github/workflows/release.yml) does all of this automatic
 
 ### Translations
 
-The app follows the system language: Spanish if Windows or macOS is set to Spanish, otherwise English. All the text is in one table per platform, [`Localization.cs`](src/AppleMusicScrobbler/Localization.cs) (Windows) and [`Localization.swift`](macos/Sources/ScrobblerCore/Localization.swift) (Mac). To add a language, add a table to each with the same English keys; the tests list anything missing. Preview with `--language es`. The log and the Discord status stay in English.
+The app follows the system language: Spanish if Windows or macOS is set to Spanish, otherwise English. To add a language, see [CONTRIBUTING.md](CONTRIBUTING.md): it's one table per platform, and the tests list anything missing.
 
 ### Developer options
 
