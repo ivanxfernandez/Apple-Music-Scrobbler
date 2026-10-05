@@ -1,0 +1,52 @@
+# Publishes a GitHub release when a version tag is pushed:
+#   git tag v1.2.0 && git push origin v1.2.0
+#
+# Repository secrets (Settings > Secrets and variables > Actions), optional but recommended:
+#   LASTFM_API_KEY / LASTFM_API_SECRET  baked into the exe so users don't need their own API key
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Build
+        shell: pwsh
+        env:
+          LASTFM_API_KEY: ${{ secrets.LASTFM_API_KEY }}
+          LASTFM_API_SECRET: ${{ secrets.LASTFM_API_SECRET }}
+        run: |
+          if (-not $env:LASTFM_API_KEY) {
+            Write-Host "::warning::LASTFM_API_KEY secret not set - users will have to create their own Last.fm API key."
+          }
+          $version = '${{ github.ref_name }}'.TrimStart('v')
+          dotnet build src/AppleMusicScrobbler -c Release `
+            "-p:Version=$version" `
+            "-p:LastFmApiKey=$env:LASTFM_API_KEY" `
+            "-p:LastFmApiSecret=$env:LASTFM_API_SECRET"
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+
+      - name: Create release
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $exe = 'src/AppleMusicScrobbler/bin/Release/net48/AppleMusicScrobbler.exe'
+          $hash = (Get-FileHash $exe -Algorithm SHA256).Hash.ToLower()
+          $prerelease = if ('${{ github.ref_name }}' -like '*-*') { '--prerelease' } else { $null }
+          gh release create '${{ github.ref_name }}' $exe `
+            --title 'Apple Music Scrobbler ${{ github.ref_name }}' `
+            --notes "**Download ``AppleMusicScrobbler.exe`` below**, put it somewhere permanent and run it.`n`nSHA-256: ``$hash``" `
+            --generate-notes $prerelease
