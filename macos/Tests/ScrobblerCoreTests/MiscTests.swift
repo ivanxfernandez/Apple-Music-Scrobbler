@@ -100,3 +100,17 @@ import Testing
         #expect(UpdateChecker.asset(named: UpdateChecker.macAssetName, in: nil) == nil)
     }
 }
+
+@Suite struct AppLocationTests {
+    @Test func knowsTheApplicationsFolders() {
+        #expect(AppLocation.isInApplications("/Applications/Apple Music Scrobbler.app", home: "/Users/ivan"))
+        #expect(AppLocation.isInApplications("/Users/ivan/Applications/Apple Music Scrobbler.app", home: "/Users/ivan"))
+        #expect(!AppLocation.isInApplications("/Users/ivan/Downloads/Apple Music Scrobbler.app", home: "/Users/ivan"))
+        #expect(!AppLocation.isInApplications("/Applications Old/Apple Music Scrobbler.app", home: "/Users/ivan"))
+    }
+
+    @Test func recognizesTranslocatedCopies() {
+        #expect(AppLocation.isTranslocated("/private/var/folders/xk/abc/T/AppTranslocation/1234-5678/d/Apple Music Scrobbler.app"))
+        #expect(!AppLocation.isTranslocated("/Applications/Apple Music Scrobbler.app"))
+    }
+}

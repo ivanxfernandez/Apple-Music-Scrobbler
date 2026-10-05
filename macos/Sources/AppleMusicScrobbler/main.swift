@@ -47,6 +47,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
 
         Log.echo = dryRun
+        // Opened from Downloads: offer to move into Applications first (the app reopens from there).
+        // --move-to-applications (developer option) moves without asking, to test the move.
+        if CommandLine.arguments.contains("--move-to-applications") && AppMover.shouldOffer {
+            do { try AppMover.moveAndRelaunch(); return } catch { Log.write("Move failed: \(error)") }
+        }
+        if !dryRun && AppMover.offer(settings: settings) { return }
         Notifier.shared.start()
         reader = MusicReader()
 

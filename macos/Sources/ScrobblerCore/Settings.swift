@@ -52,6 +52,11 @@ public final class Settings {
         get { defaults.string(forKey: "UpdateNotifiedFor") ?? "" }
         set { defaults.set(newValue, forKey: "UpdateNotifiedFor") }
     }
+    /// The user said "Not Now" to moving the app into Applications (asked again from the update window).
+    public var declinedMoveToApplications: Bool {
+        get { defaults.bool(forKey: "DeclinedMoveToApplications") }
+        set { defaults.set(newValue, forKey: "DeclinedMoveToApplications") }
+    }
     /// Version that ran last time, to say "Updated to …" once after an update.
     public var lastRunVersion: String {
         get { defaults.string(forKey: "LastRunVersion") ?? "" }

@@ -41,7 +41,7 @@ The Apple Music app on Windows 11/10 doesn't support Last.fm, and the Music app 
 <p align="center"><img src="docs/mac-menu.png" width="400" alt="The menu bar menu on a Mac, showing the current song, the last scrobble and the Recent Scrobbles submenu"></p>
 
 1. Download `AppleMusicScrobbler-macOS.zip` from the [latest release](../../releases/latest) and double-click it to unzip.
-2. **Move *Apple Music Scrobbler* to your Applications folder** before opening it. Opened straight from Downloads, macOS runs it from a temporary copy, and *Start at login* won't work.
+2. **Move *Apple Music Scrobbler* to your Applications folder** before opening it. (If you forget, the app offers to move itself there: from anywhere else it can't update itself or start at login.)
 3. Open it. The first time, macOS blocks it because it isn't notarized by Apple (that needs a paid Apple developer account). To allow it once:
    - Click **Done** on the warning.
    - Open **System Settings › Privacy & Security**, scroll down to *"Apple Music Scrobbler" was blocked*, and click **Open Anyway**. Confirm with your password.
@@ -196,7 +196,7 @@ The app follows the system language: Spanish if Windows or macOS is set to Spani
 
 - `AppleMusicScrobbler.exe --dry-run` logs what it would send, without contacting Last.fm.
 - `--pretend-version 1.0.0` (both platforms) checks for updates as if this were version 1.0.0, so the latest release is offered as an update. Use it to test the updater.
-- On the Mac, `--save-setup-screenshot file.png` draws the setup window into an image (used for `docs/mac-setup.png`).
+- On the Mac, `--move-to-applications` moves a release build into Applications without asking (to test the move), and `--save-setup-screenshot file.png` draws the setup window into an image (used for `docs/mac-setup.png`).
 - `tools/screenshots.ps1` regenerates the README screenshots (`docs/menu.png`, `docs/setup.png`).
 - `tools/make-icon.ps1` regenerates `app.ico` from `IconFactory.cs`.
 

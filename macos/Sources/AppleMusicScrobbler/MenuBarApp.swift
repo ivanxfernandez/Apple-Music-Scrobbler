@@ -346,41 +346,45 @@ final class MenuBarApp: NSObject, NSMenuDelegate {
 
     // MARK: - Actions
 
-    /// Asks before installing; Release Notes opens the release page.
+    /// Asks before installing; Release Notes opens the release page. Outside Applications, offers to move there first.
     @objc private func openUpdate() {
         guard let update else { return }
+        enum Choice { case install, move, releasePage, later }
+        var choices: [(String, Choice)] = []
         let alert = NSAlert()
         alert.messageText = L("Update to %@ %@?", AppInfo.name, update.tag)
         switch Updater.installLocation() {
         case .success where update.download != nil:
             alert.informativeText = L("The app downloads the new version, checks it, and restarts. Your settings and Last.fm login are kept.")
-            alert.addButton(withTitle: L("Install and Restart"))
+            choices = [(L("Install and Restart"), .install), (L("Later"), .later), (L("Release Notes"), .releasePage)]
+        case .failure where AppMover.shouldOffer:
+            alert.informativeText = L("It can update itself once it's in the Applications folder. Move it there now? It reopens, and then offers the update again.")
+            choices = [(L("Move to Applications"), .move), (L("Later"), .later), (L("Open Release Page"), .releasePage)]
         case .failure(let reason):
             alert.informativeText = L("It can't update itself because %@. You can download the new version from the release page.", reason)
-            alert.addButton(withTitle: L("Open Release Page"))
+            choices = [(L("Open Release Page"), .releasePage), (L("Later"), .later)]
         default:
             alert.informativeText = L("You can download the new version from the release page.")
-            alert.addButton(withTitle: L("Open Release Page"))
+            choices = [(L("Open Release Page"), .releasePage), (L("Later"), .later)]
         }
-        alert.addButton(withTitle: L("Later"))
-        if alert.buttons.first?.title == L("Install and Restart") { alert.addButton(withTitle: L("Release Notes")) }
+        for (title, _) in choices { alert.addButton(withTitle: title) }
         NSApp.activate(ignoringOtherApps: true)
-        switch alert.runModal() {
-        case .alertFirstButtonReturn:
-            if alert.buttons.first?.title == L("Install and Restart") {
-                updateItem.title = L("Installing %@\u{2026}", update.tag)
-                updateItem.isEnabled = false
-                updater.install(update) { [weak self] in
-                    self?.updateItem.isEnabled = true
-                    self?.updateItem.title = L("\u{2B06} Update Available: %@", update.tag)
-                    NSWorkspace.shared.open(update.url)
-                }
-            } else {
+        let index = alert.runModal().rawValue - NSApplication.ModalResponse.alertFirstButtonReturn.rawValue
+        guard choices.indices.contains(index) else { return }
+        switch choices[index].1 {
+        case .install:
+            updateItem.title = L("Installing %@\u{2026}", update.tag)
+            updateItem.isEnabled = false
+            updater.install(update) { [weak self] in
+                self?.updateItem.isEnabled = true
+                self?.updateItem.title = L("\u{2B06} Update Available: %@", update.tag)
                 NSWorkspace.shared.open(update.url)
             }
-        case .alertThirdButtonReturn:
+        case .move:
+            AppMover.offer(settings: settings, force: true)
+        case .releasePage:
             NSWorkspace.shared.open(update.url)
-        default:
+        case .later:
             break
         }
     }

@@ -105,6 +105,17 @@ public enum Localization {
             "Envía a Last.fm lo que escuchas en la app Música de tu Mac.\nSin relación con Apple ni con Last.fm.",
         "Open Project Page": "Abrir la página del proyecto",
 
+        "Move to the Applications folder?": "¿Mover a la carpeta Aplicaciones?",
+        "Apple Music Scrobbler can update itself and start when you log in only from the Applications folder. It will move there and reopen.":
+            "Apple Music Scrobbler solo puede actualizarse sola y abrirse al iniciar sesión desde la carpeta Aplicaciones. Se moverá ahí y volverá a abrirse.",
+        "Move to Applications": "Mover a Aplicaciones",
+        "Not Now": "Ahora no",
+        "Couldn't move the app": "No se pudo mover la app",
+        "Drag Apple Music Scrobbler into the Applications folder in Finder, then open it from there.":
+            "Arrastra Apple Music Scrobbler a la carpeta Aplicaciones en el Finder y ábrela desde ahí.",
+        "It can update itself once it's in the Applications folder. Move it there now? It reopens, and then offers the update again.":
+            "Puede actualizarse sola cuando esté en la carpeta Aplicaciones. ¿Moverla ahí ahora? Se vuelve a abrir y te ofrece la actualización otra vez.",
+
         // Notifications
         "Updated to %@": "Actualizado a %@",
         "%@ is up to date. See what's new on the release page.": "%@ está al día. Mira las novedades en la página de la versión.",

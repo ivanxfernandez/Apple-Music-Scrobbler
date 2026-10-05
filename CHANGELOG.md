@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.6.1
+
+- **Mac: offers to move itself into Applications** when it's opened from somewhere else, like Downloads, and reopens from there. It can only update itself and start at login from Applications; outside it, the update window now offers the move instead of just the download page.
+- Windows: no changes in this version.
+
 ## 1.6.0
 
 - **Windows: dark mode.** The tray menu and the setup window follow Windows' light/dark app setting.
