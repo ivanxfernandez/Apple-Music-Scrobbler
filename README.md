@@ -18,6 +18,9 @@ The Apple Music app on Windows 11/10 doesn't support Last.fm, and the Music app 
 - **Collaborations** like *"Joji & BENEE"* can be scrobbled as the main artist (optional)
 - **One-click updates**: when a new version is out, the app installs it and restarts
 - **Report a problem** from the menu: opens a GitHub issue with the details already filled in
+- **Ignore list** for artists you don't want on Last.fm or Discord
+- **Mac: catch up on iPhone plays**: songs from your library played on your iPhone or iPad are scrobbled too (optional)
+- **English and Spanish**, following your system language
 - **Windows**: a single ~80 KB `.exe`. There's no installer and nothing else to download, because it uses the .NET Framework 4.8 that already comes with Windows 10/11
 - **Mac**: a native menu bar app of about 1 MB for macOS 13 Ventura or newer, on Apple Silicon and Intel
 
@@ -180,6 +183,10 @@ The [Release workflow](.github/workflows/release.yml) does all of this automatic
    git push origin v1.1.0
    ```
 3. GitHub Actions runs the tests on Windows and macOS, builds the exe and the Mac app with the key, version and repository baked in, and publishes one release with both. Installed copies notify their users within a day.
+
+### Translations
+
+The app follows the system language: Spanish if Windows or macOS is set to Spanish, otherwise English. All the text is in one table per platform, [`Localization.cs`](src/AppleMusicScrobbler/Localization.cs) (Windows) and [`Localization.swift`](macos/Sources/ScrobblerCore/Localization.swift) (Mac). To add a language, add a table to each with the same English keys; the tests list anything missing. Preview with `--language es`. The log and the Discord status stay in English.
 
 ### Developer options
 

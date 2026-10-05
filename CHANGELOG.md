@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.5.0
+
+- **Spanish**: the app is in Spanish when Windows or macOS is set to Spanish. Translations live in one table per platform (`src/AppleMusicScrobbler/Localization.cs`, `macos/Sources/ScrobblerCore/Localization.swift`), so other languages are easy to add.
+- **Ignore list**: *Don't scrobble [artist]* in the menu stops sending that artist to Last.fm and Discord (collaborations they lead too). *Options › Ignored artists* lists them; click one to undo.
+- **Mac: catch up on plays from other devices** (*Options*, off by default): songs from your library that you played on your iPhone or iPad are scrobbled from Music's play history, which iCloud syncs to the Mac within seconds. Plays already on Last.fm are skipped. If you use *Scan* in the Last.fm iPhone app, use one or the other.
+
 ## 1.4.0
 
 - **One-click updates**: when a new version is out, click the notification or the *Update available* menu item and the app installs it and restarts. It checks the download against the SHA-256 GitHub publishes before installing, and opens the download page instead if anything doesn't check out. This works from 1.4.0 on; to get 1.4.0 itself, update by hand once.

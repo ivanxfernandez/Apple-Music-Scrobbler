@@ -54,4 +54,5 @@ open "build/Apple Music Scrobbler.app" --args --dry-run
   Both platforms share version numbers and one GitHub release (the Windows updater only reads `releases/latest` with `vX.Y.Z` tags).
 - Build-time values: Last.fm key/secret come from the repo secrets `LASTFM_API_KEY` / `LASTFM_API_SECRET` (never commit them).
   The Discord application ID `1556532063429988354` is public and committed.
+- User-facing text goes through `L("…")` (Windows: `{0}` placeholders, Mac: `%@`) and needs an entry in both Spanish tables; the tests fail on missing or unused entries. Log messages and the Discord activity stay in English.
 - Explain choices in plain language, and ask the owner before anything that costs money or publishes.
