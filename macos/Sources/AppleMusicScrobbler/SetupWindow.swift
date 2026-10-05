@@ -196,6 +196,30 @@ struct SetupView: View {
     }
 }
 
+/// --save-setup-screenshot PATH: draws the setup window (with its title bar) into a PNG for the
+/// README, without showing it or needing screen-recording permission.
+@MainActor
+func saveSetupScreenshot(to path: String, settings: ScrobblerCore.Settings, reader: MusicReader) {
+    let model = SetupModel(settings: settings, reader: reader)
+    let window = NSWindow(contentViewController: NSHostingController(rootView: SetupView(model: model) {}))
+    window.title = AppInfo.name
+    window.styleMask = [.titled, .closable]
+    window.appearance = NSAppearance(named: .aqua)
+    window.layoutIfNeeded()
+    guard let frameView = window.contentView?.superview else { return }
+    frameView.layoutSubtreeIfNeeded()
+    let bounds = frameView.bounds
+    let scale = 2
+    guard let rep = NSBitmapImageRep(bitmapDataPlanes: nil, pixelsWide: Int(bounds.width) * scale, pixelsHigh: Int(bounds.height) * scale,
+                                     bitsPerSample: 8, samplesPerPixel: 4, hasAlpha: true, isPlanar: false,
+                                     colorSpaceName: .deviceRGB, bytesPerRow: 0, bitsPerPixel: 0) else { return }
+    rep.size = bounds.size
+    NSAppearance(named: .aqua)?.performAsCurrentDrawingAppearance {
+        frameView.cacheDisplay(in: bounds, to: rep)
+    }
+    try? rep.representation(using: .png, properties: [:])?.write(to: URL(fileURLWithPath: path))
+}
+
 /// Shows the setup window; calls `completion(true)` once connected, `false` if closed.
 @MainActor
 final class SetupWindowController: NSObject, NSWindowDelegate {

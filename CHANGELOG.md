@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.4.0
+
+- **One-click updates**: when a new version is out, click the notification or the *Update available* menu item and the app installs it and restarts. It checks the download against the SHA-256 GitHub publishes before installing, and opens the download page instead if anything doesn't check out. This works from 1.4.0 on; to get 1.4.0 itself, update by hand once.
+- **Recent scrobbles** submenu: the last 10 songs sent to Last.fm (click one to open it there), anything still waiting to be sent, and a **Send now** button.
+- **Scrobble only the main artist of collaborations** (*Options*, off by default): *"Joji & BENEE"* is scrobbled as *"Joji"*. Bands like *Simon & Garfunkel* are left alone; Last.fm's own listener counts tell the two apart.
+- **Report a problem** in the menu opens a GitHub issue with your app version, system and recent log lines filled in, and the repository has issue forms for problems and ideas.
+- An *"Updated to …"* notification after an update.
+- Mac screenshots in the README.
+
 ## 1.3.0
 
 - **Mac version**: a menu bar app for the Music app on macOS 13 or newer (Apple Silicon and Intel), with the same features as on Windows: now playing, scrobbling with an offline queue, love, pause, title cleanup, Discord status, update notifications and start at login. It asks once for access to Music so songs played on repeat are scrobbled each time. Download `AppleMusicScrobbler-macOS.zip` from the release; see the README for the first launch.

@@ -14,7 +14,10 @@ The Apple Music app on Windows 11/10 doesn't support Last.fm, and the Music app 
 - **Works offline**: scrobbles are saved and sent when you're back online
 - **Discord status**: *Listening to Apple Music* on your Discord profile, with the song, artist, album art, a progress bar and an Apple Music link (this can be turned off)
 - **♥ Love** the current song from the tray menu
-- **Update notifications** when a new version is released
+- **Recent scrobbles** in the menu, with anything still waiting to be sent
+- **Collaborations** like *"Joji & BENEE"* can be scrobbled as the main artist (optional)
+- **One-click updates**: when a new version is out, the app installs it and restarts
+- **Report a problem** from the menu: opens a GitHub issue with the details already filled in
 - **Windows**: a single ~80 KB `.exe`. There's no installer and nothing else to download, because it uses the .NET Framework 4.8 that already comes with Windows 10/11
 - **Mac**: a native menu bar app of about 1 MB for macOS 13 Ventura or newer, on Apple Silicon and Intel
 
@@ -26,9 +29,11 @@ The Apple Music app on Windows 11/10 doesn't support Last.fm, and the Music app 
 
 > **Windows SmartScreen** may warn about an unrecognized app because the exe isn't code-signed. Click **More info → Run anyway**, or build it yourself from source (see below). Each release lists the exe's SHA-256 so you can verify your download.
 
-To update, quit the app from the tray menu, replace the exe, and start it again. Your settings and login are kept.
+**Updates**: when a new version is out, the app shows a notification and an *Update available* menu item. Click either, then **Yes** to install it: the app downloads the new exe, checks it against the SHA-256 GitHub publishes for the release, swaps it in and restarts. Your settings and login are kept. (If the exe is in a folder you can't write to, such as Program Files, it opens the download page instead.) You can also always update by hand: quit, replace the exe, start it again.
 
 ## Install on Mac
+
+<p align="center"><img src="docs/mac-menu.png" width="400" alt="The menu bar menu on a Mac, showing the current song, the last scrobble and the Recent Scrobbles submenu"></p>
 
 1. Download `AppleMusicScrobbler-macOS.zip` from the [latest release](../../releases/latest) and double-click it to unzip.
 2. **Move *Apple Music Scrobbler* to your Applications folder** before opening it. Opened straight from Downloads, macOS runs it from a temporary copy, and *Start at login* won't work.
@@ -39,7 +44,11 @@ To update, quit the app from the tray menu, replace the exe, and start it again.
    On macOS 15 and later, right-click › Open no longer skips this. Each release lists the zip's SHA-256 so you can verify your download, or you can build it yourself (see below).
 4. The setup window walks you through connecting Last.fm. It also asks for access to Music: click **Allow** when macOS asks *"Apple Music Scrobbler" wants access to control "Music"*. The app only reads how far into a song you are, so songs you play on repeat count every time. Everything else works without it.
 
-The app lives in the menu bar as a ♪ note. There's no Dock icon. To update, quit it from the menu, replace the app in Applications with the new one, and open it again. Your settings, login and Music permission are kept.
+<p align="center"><img src="docs/mac-setup.png" width="480" alt="The setup window on a Mac"></p>
+
+The app lives in the menu bar as a ♪ note. There's no Dock icon.
+
+**Updates**: when a new version is out, the app shows a notification and an *Update Available* menu item. Click either, then **Install and Restart**: the app downloads the new version, checks it against the SHA-256 GitHub publishes for the release, replaces itself and restarts. Your settings, login and Music permission are kept, and you don't go through the *Open Anyway* step again. (The app clears the download's quarantine flag after checking it, the same way other Mac apps' updaters do.) Updating by hand works too: quit, replace the app in Applications, open it again.
 
 ### About the Last.fm API key
 
@@ -172,6 +181,8 @@ The [Release workflow](.github/workflows/release.yml) does all of this automatic
 ### Developer options
 
 - `AppleMusicScrobbler.exe --dry-run` logs what it would send, without contacting Last.fm.
+- `--pretend-version 1.0.0` (both platforms) checks for updates as if this were version 1.0.0, so the latest release is offered as an update. Use it to test the updater.
+- On the Mac, `--save-setup-screenshot file.png` draws the setup window into an image (used for `docs/mac-setup.png`).
 - `tools/screenshots.ps1` regenerates the README screenshots (`docs/menu.png`, `docs/setup.png`).
 - `tools/make-icon.ps1` regenerates `app.ico` from `IconFactory.cs`.
 

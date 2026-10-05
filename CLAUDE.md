@@ -35,13 +35,15 @@ dotnet test AppleMusicScrobbler.sln -c Release
 ## Commands (Mac, in `macos/`)
 
 ```
-swift test
+./test.sh                 # swift test, retrying the flaky TestingMacros load error
 ./build-app.sh            # [version]; env LASTFM_API_KEY, LASTFM_API_SECRET, GITHUB_REPO, UNIVERSAL=1
 open "build/Apple Music Scrobbler.app" --args --dry-run
 ```
 
 - Only the Command Line Tools are installed (no Xcode), so tests must use Swift Testing, not XCTest.
-- `swift test` sometimes fails with "plugin for module 'TestingMacros' not found" (an intermittent Command Line Tools build bug, seen on the first build after a clean). Run it again; it isn't a code problem.
+- Plain `swift test` often fails with "plugin for module 'TestingMacros' not found" after a test file changes (a Command Line Tools glitch, not a code problem); `./test.sh` retries it.
+- Test the updater with `--pretend-version 1.0.0` on a build that has `GITHUB_REPO` set: it offers the latest release as an update.
+- No C# compiler on the Mac: push to the `dev` branch (draft PR) and let GitHub Actions build and test the Windows code.
 - Log: `~/Library/Logs/AppleMusicScrobbler/scrobbler.log`. Ivan's installed copy is `/Applications/Apple Music Scrobbler.app`.
 
 ## Conventions

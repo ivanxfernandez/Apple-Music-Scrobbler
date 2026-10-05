@@ -18,6 +18,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private let setup = SetupWindowController()
 
     func applicationDidFinishLaunching(_ notification: Notification) {
+        // Developer option (README screenshot); works while the app is running too.
+        if let i = CommandLine.arguments.firstIndex(of: "--save-setup-screenshot"), i + 1 < CommandLine.arguments.count {
+            saveSetupScreenshot(to: CommandLine.arguments[i + 1], settings: Settings(defaults: UserDefaults(suiteName: "screenshot") ?? .standard), reader: MusicReader())
+            NSApp.terminate(nil)
+            return
+        }
+
         if let id = Bundle.main.bundleIdentifier,
            NSRunningApplication.runningApplications(withBundleIdentifier: id).contains(where: { $0 != .current }) {
             let alert = NSAlert()
@@ -32,6 +39,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         Log.echo = dryRun
         Notifier.shared.start()
         reader = MusicReader()
+
 
         if !dryRun && !settings.isConnected {
             setup.show(settings: settings, reader: reader) { [weak self] connected in
