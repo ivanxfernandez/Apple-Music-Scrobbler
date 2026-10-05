@@ -1,3 +1,6 @@
 * text=auto eol=crlf
+# macOS app and shell scripts need LF (a CR breaks the #! line)
+macos/** text=auto eol=lf
+*.sh text eol=lf
 *.png binary
 *.ico binary
