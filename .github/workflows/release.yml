@@ -35,7 +35,8 @@ jobs:
           dotnet build src/AppleMusicScrobbler -c Release `
             "-p:Version=$version" `
             "-p:LastFmApiKey=$env:LASTFM_API_KEY" `
-            "-p:LastFmApiSecret=$env:LASTFM_API_SECRET"
+            "-p:LastFmApiSecret=$env:LASTFM_API_SECRET" `
+            "-p:GitHubRepo=${{ github.repository }}"
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
 
       - name: Create release

@@ -24,17 +24,21 @@
     -->
     <LastFmApiKey Condition="'$(LastFmApiKey)' == ''"></LastFmApiKey>
     <LastFmApiSecret Condition="'$(LastFmApiSecret)' == ''"></LastFmApiSecret>
+    <!-- "owner/repo" to check for new releases; set by the release workflow, empty = no update checks. -->
+    <GitHubRepo Condition="'$(GitHubRepo)' == ''"></GitHubRepo>
   </PropertyGroup>
 
   <ItemGroup>
     <AssemblyMetadata Include="LastFmApiKey" Value="$(LastFmApiKey)" />
     <AssemblyMetadata Include="LastFmApiSecret" Value="$(LastFmApiSecret)" />
+    <AssemblyMetadata Include="GitHubRepo" Value="$(GitHubRepo)" />
   </ItemGroup>
 
   <ItemGroup>
     <Reference Include="System.Windows.Forms" />
     <Reference Include="System.Drawing" />
     <Reference Include="System.Net.Http" />
+    <Reference Include="System.Runtime.Serialization" />
     <Reference Include="System.Security" />
     <Reference Include="System.Xml.Linq" />
   </ItemGroup>

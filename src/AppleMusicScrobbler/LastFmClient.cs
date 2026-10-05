@@ -31,20 +31,12 @@ namespace AppleMusicScrobbler
     public class LastFmClient
     {
         const string ApiUrl = "https://ws.audioscrobbler.com/2.0/";
-        static readonly HttpClient Http = CreateHttpClient();
 
         readonly Settings _settings;
 
         public LastFmClient(Settings settings)
         {
             _settings = settings;
-        }
-
-        static HttpClient CreateHttpClient()
-        {
-            var http = new HttpClient { Timeout = TimeSpan.FromSeconds(20) };
-            http.DefaultRequestHeaders.UserAgent.ParseAdd("AppleMusicScrobbler/" + AppInfo.Version);
-            return http;
         }
 
         public async Task<string> GetTokenAsync()
@@ -138,7 +130,7 @@ namespace AppleMusicScrobbler
 
             HttpResponseMessage httpResponse;
             using (var content = new FormUrlEncodedContent(parameters))
-                httpResponse = await Http.PostAsync(ApiUrl, content);
+                httpResponse = await Http.Client.PostAsync(ApiUrl, content);
 
             using (httpResponse)
             {

@@ -10,7 +10,8 @@ namespace AppleMusicScrobbler
     {
         public const string Name = "Apple Music Scrobbler";
 
-        public static string Version => Assembly.GetExecutingAssembly().GetName().Version.ToString(3);
+        public static Version VersionNumber => Assembly.GetExecutingAssembly().GetName().Version;
+        public static string Version => VersionNumber.ToString(3);
 
         public static string DataFolder =>
             Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "AppleMusicScrobbler");
@@ -18,6 +19,10 @@ namespace AppleMusicScrobbler
         /// <summary>API key compiled in with -p:LastFmApiKey=..., or empty.</summary>
         public static string BuiltInApiKey => Metadata("LastFmApiKey");
         public static string BuiltInApiSecret => Metadata("LastFmApiSecret");
+
+        /// <summary>"owner/repo" this exe was released from (set by the release workflow), or empty for local builds.</summary>
+        public static string GitHubRepo => Metadata("GitHubRepo");
+        public static string RepoUrl => GitHubRepo.Length > 0 ? "https://github.com/" + GitHubRepo : "";
 
         static string Metadata(string key) =>
             Assembly.GetExecutingAssembly().GetCustomAttributes<AssemblyMetadataAttribute>()

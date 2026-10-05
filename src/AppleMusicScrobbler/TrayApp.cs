@@ -2,6 +2,7 @@ using System;
 using System.Diagnostics;
 using System.Drawing;
 using System.Reflection;
+using System.Threading.Tasks;
 using System.Windows.Forms;
 
 namespace AppleMusicScrobbler
@@ -9,6 +10,8 @@ namespace AppleMusicScrobbler
     /// <summary>The tray icon and its menu; polls Apple Music once a second.</summary>
     public class TrayApp : ApplicationContext
     {
+        const int UpdateCheckIntervalMs = 24 * 60 * 60 * 1000;
+
         readonly Settings _settings;
         readonly LastFmClient _api;
         readonly MediaReader _reader = new MediaReader();
@@ -16,12 +19,16 @@ namespace AppleMusicScrobbler
 
         readonly NotifyIcon _tray;
         readonly Timer _timer;
+        readonly Timer _updateTimer;
         readonly Icon _iconActive, _iconPaused;
-        readonly ToolStripMenuItem _nowItem, _lastItem, _loveItem, _pauseItem, _startupItem;
+        readonly ToolStripMenuItem _nowItem, _lastItem, _updateItem, _loveItem, _pauseItem;
+        readonly ToolStripMenuItem _startupItem, _checkUpdatesItem;
 
         bool _busy;
         bool _authWarningShown;
         string _lastError;
+        string _balloonUrl;
+        ReleaseInfo _update;
 
         public TrayApp(Settings settings, bool justConnected)
         {
@@ -36,9 +43,26 @@ namespace AppleMusicScrobbler
 
             _nowItem = new ToolStripMenuItem("Nothing playing") { Enabled = false };
             _lastItem = new ToolStripMenuItem("Nothing scrobbled yet") { Enabled = false };
+            _updateItem = new ToolStripMenuItem("Update available", null, (s, e) => AppInfo.OpenUrl(_update?.Url)) { Visible = false };
+            _updateItem.Font = new Font(_updateItem.Font, FontStyle.Bold);
             _loveItem = new ToolStripMenuItem("♥ Love this song on Last.fm", null, async (s, e) => await LoveCurrentAsync());
             _pauseItem = new ToolStripMenuItem("Pause scrobbling", null, (s, e) => TogglePause()) { Checked = settings.Paused };
+
             _startupItem = new ToolStripMenuItem("Start with Windows", null, (s, e) => ToggleStartup()) { Checked = Startup.IsEnabled };
+            _checkUpdatesItem = new ToolStripMenuItem("Check for updates automatically", null, (s, e) => ToggleUpdateChecks())
+            {
+                Checked = settings.CheckForUpdates,
+                Visible = AppInfo.GitHubRepo.Length > 0,
+            };
+            var options = new ToolStripMenuItem("Options");
+            options.DropDownItems.AddRange(new ToolStripItem[]
+            {
+                _startupItem,
+                _checkUpdatesItem,
+                new ToolStripSeparator(),
+                new ToolStripMenuItem("Switch Last.fm account...", null, (s, e) => Reconnect()),
+                new ToolStripMenuItem("Open log", null, (s, e) => OpenLog()),
+            });
 
             var menu = new ContextMenuStrip();
             menu.Items.AddRange(new ToolStripItem[]
@@ -46,14 +70,13 @@ namespace AppleMusicScrobbler
                 _nowItem,
                 _lastItem,
                 new ToolStripSeparator(),
+                _updateItem,
                 _loveItem,
                 _pauseItem,
-                new ToolStripSeparator(),
                 new ToolStripMenuItem("Open my Last.fm profile", null, (s, e) => AppInfo.OpenUrl("https://www.last.fm/user/" + Uri.EscapeDataString(_settings.Username ?? ""))),
-                new ToolStripMenuItem("Switch Last.fm account...", null, (s, e) => Reconnect()),
-                _startupItem,
-                new ToolStripMenuItem("Open log", null, (s, e) => OpenLog()),
+                options,
                 new ToolStripSeparator(),
+                new ToolStripMenuItem($"About {AppInfo.Name}", null, (s, e) => ShowAbout()),
                 new ToolStripMenuItem("Quit", null, (s, e) => ExitThread()),
             });
 
@@ -67,20 +90,30 @@ namespace AppleMusicScrobbler
             // Left-click opens the menu too.
             _tray.MouseUp += (s, e) =>
             {
-                if (e.Button == MouseButtons.Left)
-                    typeof(NotifyIcon).GetMethod("ShowContextMenu", BindingFlags.Instance | BindingFlags.NonPublic)?.Invoke(_tray, null);
+                if (e.Button == MouseButtons.Left) OpenMenu();
             };
+            _tray.BalloonTipClicked += (s, e) => { if (_balloonUrl != null) AppInfo.OpenUrl(_balloonUrl); };
+            _tray.BalloonTipClosed += (s, e) => _balloonUrl = null;
 
             _timer = new Timer { Interval = 1000 };
             _timer.Tick += OnTick;
             _timer.Start();
+
+            // First update check a minute after starting, then daily.
+            _updateTimer = new Timer { Interval = 60 * 1000 };
+            _updateTimer.Tick += async (s, e) =>
+            {
+                _updateTimer.Interval = UpdateCheckIntervalMs;
+                await CheckForUpdateAsync(manual: false);
+            };
+            if (AppInfo.GitHubRepo.Length > 0) _updateTimer.Start();
 
             Log.Write(Program.DryRun
                 ? $"Started {AppInfo.Version} (dry run: nothing is sent to Last.fm)"
                 : $"Started {AppInfo.Version}, scrobbling as {_settings.Username}");
 
             if (justConnected)
-                _tray.ShowBalloonTip(8000, "Connected to Last.fm",
+                ShowBalloon("Connected to Last.fm",
                     $"Scrobbling Apple Music as {_settings.Username}. I'll be here in the tray.", ToolTipIcon.Info);
         }
 
@@ -132,7 +165,16 @@ namespace AppleMusicScrobbler
             if (item.Text != text) item.Text = text;
         }
 
-        async System.Threading.Tasks.Task LoveCurrentAsync()
+        public void OpenMenu() =>
+            typeof(NotifyIcon).GetMethod("ShowContextMenu", BindingFlags.Instance | BindingFlags.NonPublic)?.Invoke(_tray, null);
+
+        void ShowBalloon(string title, string text, ToolTipIcon icon, string clickUrl = null)
+        {
+            _balloonUrl = clickUrl;
+            _tray.ShowBalloonTip(10000, title, text, icon);
+        }
+
+        async Task LoveCurrentAsync()
         {
             var np = _scrobbler.Current;
             if (np == null || !np.IsValid) return;
@@ -140,12 +182,59 @@ namespace AppleMusicScrobbler
             {
                 await _api.LoveAsync(np.Artist, np.Title);
                 Log.Write("Loved: " + np);
-                _tray.ShowBalloonTip(3000, "♥ Loved on Last.fm", np.ToString(), ToolTipIcon.None);
+                ShowBalloon("♥ Loved on Last.fm", np.ToString(), ToolTipIcon.None);
             }
             catch (Exception ex)
             {
                 Log.Write("Love failed: " + ex.Message);
-                _tray.ShowBalloonTip(5000, "Couldn't love this song", ex.Message, ToolTipIcon.Warning);
+                ShowBalloon("Couldn't love this song", ex.Message, ToolTipIcon.Warning);
+            }
+        }
+
+        async Task CheckForUpdateAsync(bool manual)
+        {
+            if (!manual && !_settings.CheckForUpdates) return;
+            try
+            {
+                var release = await UpdateChecker.GetNewerReleaseAsync();
+                if (release == null)
+                {
+                    if (manual) ShowBalloon("You're up to date", $"{AppInfo.Name} {AppInfo.Version} is the latest version.", ToolTipIcon.Info);
+                    return;
+                }
+
+                _update = release;
+                _updateItem.Text = $"⬆ Update available: {release.Tag}";
+                _updateItem.Visible = true;
+                if (manual || _settings.UpdateNotifiedFor != release.Tag)
+                {
+                    Log.Write("Update available: " + release.Tag);
+                    _settings.UpdateNotifiedFor = release.Tag;
+                    SaveSettings();
+                    ShowBalloon("Update available", $"{AppInfo.Name} {release.Tag} is out. Click to download it.", ToolTipIcon.Info, release.Url);
+                }
+            }
+            catch (Exception ex)
+            {
+                Log.Write("Update check failed: " + ex.Message);
+                if (manual) ShowBalloon("Couldn't check for updates", ex.Message, ToolTipIcon.Warning);
+            }
+        }
+
+        void ShowAbout()
+        {
+            string text = $"{AppInfo.Name} {AppInfo.Version}\n\nScrobbles the Apple Music app for Windows to Last.fm.\nNot affiliated with Apple or Last.fm.";
+            if (AppInfo.RepoUrl.Length == 0)
+            {
+                MessageBox.Show(text, AppInfo.Name, MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
+            }
+            var answer = MessageBox.Show(text + "\n\nOpen the project page (and check for updates)?", AppInfo.Name,
+                MessageBoxButtons.YesNo, MessageBoxIcon.Information);
+            if (answer == DialogResult.Yes)
+            {
+                AppInfo.OpenUrl(AppInfo.RepoUrl);
+                _ = CheckForUpdateAsync(manual: true);
             }
         }
 
@@ -165,6 +254,13 @@ namespace AppleMusicScrobbler
             _startupItem.Checked = Startup.IsEnabled;
         }
 
+        void ToggleUpdateChecks()
+        {
+            _settings.CheckForUpdates = !_settings.CheckForUpdates;
+            _checkUpdatesItem.Checked = _settings.CheckForUpdates;
+            SaveSettings();
+        }
+
         void Reconnect()
         {
             using (var setup = new SetupForm(_settings))
@@ -181,8 +277,8 @@ namespace AppleMusicScrobbler
         {
             if (_authWarningShown) return;
             _authWarningShown = true;
-            _tray.ShowBalloonTip(15000, "Last.fm needs you to reconnect",
-                "Right-click the tray icon and choose \"Switch Last.fm account...\". Your scrobbles are saved until then.",
+            ShowBalloon("Last.fm needs you to reconnect",
+                "Right-click the tray icon and choose Options > \"Switch Last.fm account...\". Your scrobbles are saved until then.",
                 ToolTipIcon.Warning);
         }
 
@@ -201,6 +297,7 @@ namespace AppleMusicScrobbler
         protected override void ExitThreadCore()
         {
             _timer.Stop();
+            _updateTimer.Stop();
             _tray.Visible = false;
             _tray.Dispose();
             Log.Write("Stopped");
