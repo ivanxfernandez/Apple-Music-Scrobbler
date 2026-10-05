@@ -23,7 +23,11 @@ Same repo, same version numbers, one GitHub release containing both the Windows 
 | Last.fm API key | The same key, from the same repository secrets, baked in at build time | Users just click Connect |
 | Discord app | Same application ID `1556532063429988354` | Same "Listening to" name and art assets |
 
-## Open decision (ask Ivan)
+## Decided: unsigned (2026-10-04)
+
+Ivan chose to stay unsigned and keep the project free for the community: no Apple Developer Program membership. The text below is kept for context.
+
+### Original question
 
 **Code signing.** Without an Apple Developer Program membership ($99/year), downloaded apps are blocked by Gatekeeper.
 On macOS 15+ users must open *System Settings › Privacy & Security › Open Anyway*. Right-click › Open no longer works.

@@ -101,5 +101,5 @@ jobs:
           gh release upload "$TAG" AppleMusicScrobbler-macOS.zip --clobber
           hash=$(sha256sum AppleMusicScrobbler-macOS.zip | cut -d' ' -f1)
           body=$(gh release view "$TAG" --json body -q .body)
-          printf '%s\n\n**Mac** (macOS 13 or newer): download `AppleMusicScrobbler-macOS.zip` below, unzip it and move the app to Applications before opening it. The app isn'"'"'t notarized by Apple yet; see the README for how to open it the first time.\n\nSHA-256: `%s`\n' "$body" "$hash" > notes.md
+          printf '%s\n\n**Mac** (macOS 13 or newer): download `AppleMusicScrobbler-macOS.zip` below, unzip it and move the app to Applications before opening it. The app isn'"'"'t notarized by Apple; see the README for how to open it the first time.\n\nSHA-256: `%s`\n' "$body" "$hash" > notes.md
           gh release edit "$TAG" --notes-file notes.md
