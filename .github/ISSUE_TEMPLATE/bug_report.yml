@@ -1,0 +1,36 @@
+name: Report a problem
+description: Something doesn't scrobble, shows the wrong thing, or the app misbehaves
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting! If you used **Report a Problem** in the app's menu, the version, system and recent log lines below are already filled in.
+        The log shows the songs you played and your Last.fm username. Remove anything you don't want to share before submitting.
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: What did you expect, and what happened instead? Include the song and artist if it's about a specific track.
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: App version
+      placeholder: "1.4.0"
+    validations:
+      required: true
+  - type: input
+    id: system
+    attributes:
+      label: Windows or macOS version
+      placeholder: "Windows 11 24H2 / macOS 15.3"
+    validations:
+      required: true
+  - type: textarea
+    id: log
+    attributes:
+      label: Recent log lines
+      description: Menu › Options › Open log. Paste the lines from around when the problem happened.
+      render: text

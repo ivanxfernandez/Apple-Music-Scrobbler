@@ -97,6 +97,7 @@ namespace AppleMusicScrobbler
                 new ToolStripMenuItem("Open my Last.fm profile", null, (s, e) => AppInfo.OpenUrl("https://www.last.fm/user/" + Uri.EscapeDataString(_settings.Username ?? ""))),
                 options,
                 new ToolStripSeparator(),
+                new ToolStripMenuItem("Report a problem...", null, (s, e) => ReportProblem()),
                 new ToolStripMenuItem($"About {AppInfo.Name}", null, (s, e) => ShowAbout()),
                 new ToolStripMenuItem("Quit", null, (s, e) => ExitThread()),
             });
@@ -250,6 +251,12 @@ namespace AppleMusicScrobbler
                 Log.Write("Update check failed: " + ex.Message);
                 if (manual) ShowBalloon("Couldn't check for updates", ex.Message, ToolTipIcon.Warning);
             }
+        }
+
+        void ReportProblem()
+        {
+            Log.Write("Opened the problem report form");
+            AppInfo.OpenUrl(IssueReport.Url(AppInfo.GitHubRepo, AppInfo.Version, IssueReport.SystemDescription(), IssueReport.ReadLog()));
         }
 
         void ShowAbout()

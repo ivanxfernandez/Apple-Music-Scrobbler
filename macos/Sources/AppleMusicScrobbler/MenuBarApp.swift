@@ -117,6 +117,7 @@ final class MenuBarApp: NSObject, NSMenuDelegate {
         menu.addItem(withTitle: "Open My Last.fm Profile", action: #selector(openProfile), keyEquivalent: "")
         menu.addItem(optionsItem)
         menu.addItem(.separator())
+        menu.addItem(withTitle: "Report a Problem\u{2026}", action: #selector(reportProblem), keyEquivalent: "")
         menu.addItem(withTitle: "About \(AppInfo.name)", action: #selector(showAbout), keyEquivalent: "")
         menu.addItem(withTitle: "Quit", action: #selector(quit), keyEquivalent: "q")
         for item in menu.items + options.items where item.action != nil { item.target = self }
@@ -230,6 +231,18 @@ final class MenuBarApp: NSObject, NSMenuDelegate {
     @objc private func openLog() {
         Log.write("Log opened")
         NSWorkspace.shared.open(Log.fileURL) // opens in Console
+    }
+
+    @objc private func reportProblem() {
+        let os = ProcessInfo.processInfo.operatingSystemVersion
+        var arch = "Apple Silicon"
+        #if arch(x86_64)
+        arch = "Intel"
+        #endif
+        let system = "macOS \(os.majorVersion).\(os.minorVersion).\(os.patchVersion) (\(arch))"
+        let log = (try? String(contentsOf: Log.fileURL, encoding: .utf8)) ?? ""
+        Log.write("Opened the problem report form")
+        NSWorkspace.shared.open(IssueReport.url(repo: AppInfo.gitHubRepo, version: AppInfo.version, system: system, log: log))
     }
 
     @objc private func showAbout() {

@@ -1,0 +1,19 @@
+name: Suggest an idea
+description: Something the app could do better
+labels: [enhancement]
+body:
+  - type: textarea
+    id: idea
+    attributes:
+      label: What would you like?
+      description: Describe what you'd like the app to do, and why it would help you.
+    validations:
+      required: true
+  - type: dropdown
+    id: platform
+    attributes:
+      label: Which version do you use?
+      multiple: true
+      options:
+        - Windows
+        - Mac

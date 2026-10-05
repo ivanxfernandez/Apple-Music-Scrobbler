@@ -76,6 +76,7 @@ On Windows the app lives in the system tray as a red note icon (you may need to 
 | Options › Switch Last.fm account... | Reconnects, or connects a different account |
 | Options › Open log | Shows what was sent and any errors |
 | Allow Access to Music… *(Mac)* | Shown only if Music access isn't allowed yet |
+| Report a problem… | Opens a new GitHub issue with your app version, system and the last lines of the log filled in. You can edit it before submitting; the log shows the songs you played |
 
 ## How it works
 
