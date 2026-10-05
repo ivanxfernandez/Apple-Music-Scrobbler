@@ -17,6 +17,8 @@ final class MenuBarApp: NSObject, NSMenuDelegate {
     private let statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
     private let nowItem = NSMenuItem(title: "Nothing playing", action: nil, keyEquivalent: "")
     private let lastItem = NSMenuItem(title: "Nothing scrobbled yet", action: nil, keyEquivalent: "")
+    private let recentItem = NSMenuItem(title: "Recent Scrobbles", action: nil, keyEquivalent: "")
+    private let recentMenu = NSMenu()
     private let updateItem = NSMenuItem(title: "Update available", action: #selector(openUpdate), keyEquivalent: "")
     private let musicAccessItem = NSMenuItem(title: "Allow Access to Music\u{2026}", action: #selector(allowMusic), keyEquivalent: "")
     private let loveItem = NSMenuItem(title: "\u{2665} Love This Song on Last.fm", action: #selector(loveCurrent), keyEquivalent: "")
@@ -109,6 +111,9 @@ final class MenuBarApp: NSObject, NSMenuDelegate {
         options.autoenablesItems = false
         menu.addItem(nowItem)
         menu.addItem(lastItem)
+        recentMenu.autoenablesItems = false
+        recentItem.submenu = recentMenu
+        menu.addItem(recentItem)
         menu.addItem(.separator())
         menu.addItem(updateItem)
         menu.addItem(musicAccessItem)
@@ -128,7 +133,64 @@ final class MenuBarApp: NSObject, NSMenuDelegate {
 
     func menuNeedsUpdate(_ menu: NSMenu) {
         startupItem.state = Startup.isEnabled ? .on : .off
+        buildRecentMenu()
         updateUi()
+    }
+
+    /// Latest scrobbles (click one to open it on Last.fm), anything waiting to be sent, and Send Now.
+    private func buildRecentMenu() {
+        recentMenu.removeAllItems()
+        let recent = scrobbler.recent
+        if recent.isEmpty {
+            let none = NSMenuItem(title: "Nothing scrobbled yet", action: nil, keyEquivalent: "")
+            none.isEnabled = false
+            recentMenu.addItem(none)
+        }
+        for item in recent {
+            let entry = NSMenuItem(title: Self.menuText("\(RecentScrobbles.time(item))   \(item.artist) - \(item.track)"),
+                                   action: #selector(openRecent(_:)), keyEquivalent: "")
+            entry.target = self
+            entry.representedObject = item.url
+            entry.toolTip = "Open on Last.fm"
+            recentMenu.addItem(entry)
+        }
+
+        let pending = scrobbler.pendingScrobbles
+        if !pending.isEmpty {
+            recentMenu.addItem(.separator())
+            let waiting = NSMenuItem(title: pending.count == 1 ? "1 Waiting to Send" : "\(pending.count) Waiting to Send", action: nil, keyEquivalent: "")
+            waiting.isEnabled = false
+            recentMenu.addItem(waiting)
+            for s in pending.suffix(5).reversed() {
+                let entry = NSMenuItem(title: Self.menuText("    \(s.artist) - \(s.track)"), action: nil, keyEquivalent: "")
+                entry.isEnabled = false
+                recentMenu.addItem(entry)
+            }
+            let sendNow = NSMenuItem(title: "Send Now", action: #selector(sendNow), keyEquivalent: "")
+            sendNow.target = self
+            sendNow.isEnabled = !dryRun
+            recentMenu.addItem(sendNow)
+        }
+
+        recentMenu.addItem(.separator())
+        let library = NSMenuItem(title: "Open My Last.fm Library", action: #selector(openLibrary), keyEquivalent: "")
+        library.target = self
+        recentMenu.addItem(library)
+    }
+
+    @objc private func openRecent(_ sender: NSMenuItem) {
+        if let url = sender.representedObject as? URL { NSWorkspace.shared.open(url) }
+    }
+
+    @objc private func sendNow() {
+        Log.write("Sending \(scrobbler.pending) waiting scrobble(s) now")
+        scrobbler.retrySoon()
+        tick()
+    }
+
+    @objc private func openLibrary() {
+        let user = settings.username.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? ""
+        if let url = URL(string: "https://www.last.fm/user/\(user)/library") { NSWorkspace.shared.open(url) }
     }
 
     private func updateUi() {
@@ -136,6 +198,7 @@ final class MenuBarApp: NSObject, NSMenuDelegate {
         let playing = np.map { $0.isValid ? $0.description + ($0.isPlaying ? "" : " (paused)") : nil } ?? nil
         setTitle(nowItem, Self.menuText(playing ?? "Nothing playing"))
         setTitle(lastItem, scrobbler.lastScrobbled.isEmpty ? "Nothing scrobbled yet" : Self.menuText("Last scrobbled: " + scrobbler.lastScrobbled))
+        setTitle(recentItem, scrobbler.pending > 0 ? "Recent Scrobbles (\(scrobbler.pending) Waiting)" : "Recent Scrobbles")
         loveItem.isEnabled = np?.isValid == true && !dryRun
         pauseItem.state = settings.paused ? .on : .off
         discordItem.state = settings.showOnDiscord ? .on : .off

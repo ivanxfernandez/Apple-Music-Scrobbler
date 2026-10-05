@@ -39,6 +39,10 @@ namespace AppleMusicScrobbler
         public NowPlaying Current { get; private set; }
         public string LastScrobbled => _settings.LastScrobbled;
         public int Pending => _queue.Count;
+        /// <summary>Scrobbles waiting to be sent (offline, or Last.fm busy), oldest first.</summary>
+        public IReadOnlyList<QueuedScrobble> PendingScrobbles => _queue;
+        /// <summary>Latest scrobbles Last.fm accepted, newest first.</summary>
+        public IReadOnlyList<RecentScrobble> Recent => _settings.RecentScrobbles;
 
         /// <summary>Raised when the Last.fm login stopped working.</summary>
         public event Action AuthProblem;
@@ -74,7 +78,7 @@ namespace AppleMusicScrobbler
                 _ = SendQueueAsync();
         }
 
-        /// <summary>Try sending queued scrobbles on the next update (e.g. after reconnecting).</summary>
+        /// <summary>Try sending queued scrobbles on the next update (e.g. after reconnecting, or "Send now").</summary>
         public void RetrySoon() => _nextSend = DateTime.MinValue;
 
         async Task SendNowPlayingAsync(NowPlaying np)
@@ -123,7 +127,18 @@ namespace AppleMusicScrobbler
                 // Only Enqueue (which appends) can run meanwhile, so the batch is still at the front.
                 _queue.RemoveRange(0, batch.Count);
                 SaveQueue();
-                foreach (var s in batch) Log.Write((_dryRun ? "[dry run] Would scrobble: " : "Scrobbled: ") + $"{s.Artist} - {s.Track}");
+                var recent = _settings.RecentScrobbles;
+                foreach (var s in batch)
+                {
+                    Log.Write((_dryRun ? "[dry run] Would scrobble: " : "Scrobbled: ") + $"{s.Artist} - {s.Track}");
+                    recent = RecentScrobbles.Adding(new RecentScrobble { Timestamp = s.Timestamp, Artist = s.Artist, Track = s.Track }, recent);
+                }
+                if (!_dryRun)
+                {
+                    _settings.RecentScrobbles = recent;
+                    try { _settings.Save(); }
+                    catch (Exception ex) { Log.Write("Could not save settings: " + ex.Message); }
+                }
                 foreach (var message in ignored) Log.Write("  Last.fm ignored " + message);
             }
             catch (Exception ex)

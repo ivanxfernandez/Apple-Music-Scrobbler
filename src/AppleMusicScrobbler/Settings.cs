@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Security.Cryptography;
 using System.Text;
@@ -28,6 +29,8 @@ namespace AppleMusicScrobbler
         public string UpdateNotifiedFor { get; set; } = "";
         /// <summary>"Artist - Title" of the latest scrobble, shown in the tray menu.</summary>
         public string LastScrobbled { get; set; } = "";
+        /// <summary>Latest accepted scrobbles, newest first (see RecentScrobbles).</summary>
+        public List<RecentScrobble> RecentScrobbles { get; set; } = new List<RecentScrobble>();
 
         [XmlIgnore] public string ApiSecret { get; set; } = "";
         [XmlIgnore] public string SessionKey { get; set; } = "";

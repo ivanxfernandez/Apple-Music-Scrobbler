@@ -23,7 +23,7 @@ namespace AppleMusicScrobbler
         readonly Timer _timer;
         readonly Timer _updateTimer;
         readonly Icon _iconActive, _iconPaused;
-        readonly ToolStripMenuItem _nowItem, _lastItem, _updateItem, _loveItem, _pauseItem;
+        readonly ToolStripMenuItem _nowItem, _lastItem, _recentItem, _updateItem, _loveItem, _pauseItem;
         readonly ToolStripMenuItem _startupItem, _checkUpdatesItem, _discordItem;
 
         bool _busy;
@@ -46,6 +46,9 @@ namespace AppleMusicScrobbler
 
             _nowItem = new ToolStripMenuItem("Nothing playing") { Enabled = false };
             _lastItem = new ToolStripMenuItem("Nothing scrobbled yet") { Enabled = false };
+            _recentItem = new ToolStripMenuItem("Recent scrobbles");
+            _recentItem.DropDownItems.Add("Nothing scrobbled yet"); // placeholder so the arrow shows; filled when opened
+            _recentItem.DropDownOpening += (s, e) => BuildRecentMenu();
             _updateItem = new ToolStripMenuItem("Update available", null, (s, e) => AppInfo.OpenUrl(_update?.Url)) { Visible = false };
             _updateItem.Font = new Font(_updateItem.Font, FontStyle.Bold);
             _loveItem = new ToolStripMenuItem("♥ Love this song on Last.fm", null, async (s, e) => await LoveCurrentAsync());
@@ -90,6 +93,7 @@ namespace AppleMusicScrobbler
             {
                 _nowItem,
                 _lastItem,
+                _recentItem,
                 new ToolStripSeparator(),
                 _updateItem,
                 _loveItem,
@@ -176,6 +180,7 @@ namespace AppleMusicScrobbler
 
             SetText(_nowItem, MenuText(playing));
             SetText(_lastItem, string.IsNullOrEmpty(_scrobbler.LastScrobbled) ? "Nothing scrobbled yet" : MenuText("Last scrobbled: " + _scrobbler.LastScrobbled));
+            SetText(_recentItem, _scrobbler.Pending > 0 ? $"Recent scrobbles ({_scrobbler.Pending} waiting)" : "Recent scrobbles");
             _loveItem.Enabled = np != null && np.IsValid && !Program.DryRun;
             SetText(_discordItem, "Show “Listening to” on Discord" +
                 (_settings.ShowOnDiscord && !_discord.IsConnected ? " (waiting for Discord)" : ""));
@@ -184,6 +189,39 @@ namespace AppleMusicScrobbler
             if (_scrobbler.Pending > 0) tip += $"\n{_scrobbler.Pending} waiting to send";
             if (tip.Length > 63) tip = tip.Substring(0, 62) + "…"; // Windows limit
             if (_tray.Text != tip) _tray.Text = tip;
+        }
+
+        /// <summary>Latest scrobbles (click one to open it on Last.fm), anything waiting to be sent, and Send now.</summary>
+        void BuildRecentMenu()
+        {
+            var items = _recentItem.DropDownItems;
+            items.Clear();
+            var recent = _scrobbler.Recent;
+            if (recent.Count == 0) items.Add(new ToolStripMenuItem("Nothing scrobbled yet") { Enabled = false });
+            foreach (var r in recent)
+            {
+                string url = r.Url;
+                items.Add(new ToolStripMenuItem(MenuText($"{RecentScrobbles.Time(r, DateTime.Now)}   {r.Artist} - {r.Track}"), null,
+                    (s, e) => AppInfo.OpenUrl(url)) { ToolTipText = "Open on Last.fm" });
+            }
+
+            var pending = _scrobbler.PendingScrobbles;
+            if (pending.Count > 0)
+            {
+                items.Add(new ToolStripSeparator());
+                items.Add(new ToolStripMenuItem(pending.Count == 1 ? "1 waiting to send" : $"{pending.Count} waiting to send") { Enabled = false });
+                for (int i = pending.Count - 1; i >= Math.Max(0, pending.Count - 5); i--)
+                    items.Add(new ToolStripMenuItem(MenuText($"    {pending[i].Artist} - {pending[i].Track}")) { Enabled = false });
+                items.Add(new ToolStripMenuItem("Send now", null, (s, e) =>
+                {
+                    Log.Write($"Sending {_scrobbler.Pending} waiting scrobble(s) now");
+                    _scrobbler.RetrySoon();
+                }) { Enabled = !Program.DryRun });
+            }
+
+            items.Add(new ToolStripSeparator());
+            items.Add(new ToolStripMenuItem("Open my Last.fm library", null,
+                (s, e) => AppInfo.OpenUrl("https://www.last.fm/user/" + Uri.EscapeDataString(_settings.Username ?? "") + "/library")));
         }
 
         static string MenuText(string text)

@@ -53,6 +53,12 @@ public final class Settings {
         set { defaults.set(newValue, forKey: "LastScrobbled") }
     }
 
+    /// Latest accepted scrobbles, newest first (see RecentScrobbles).
+    public var recentScrobbles: [RecentScrobble] {
+        get { (defaults.data(forKey: "RecentScrobbles")).flatMap { try? JSONDecoder().decode([RecentScrobble].self, from: $0) } ?? [] }
+        set { defaults.set(try? JSONEncoder().encode(newValue), forKey: "RecentScrobbles") }
+    }
+
     public var apiSecret: String {
         get { secrets["ApiSecret"] ?? "" }
         set { secrets["ApiSecret"] = newValue }

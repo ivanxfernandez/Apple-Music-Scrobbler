@@ -20,6 +20,10 @@ public final class Scrobbler {
     public private(set) var current: NowPlaying?
     public var lastScrobbled: String { settings.lastScrobbled }
     public var pending: Int { queue.count }
+    /// Scrobbles waiting to be sent (offline, or Last.fm busy), oldest first.
+    public var pendingScrobbles: [QueuedScrobble] { queue }
+    /// Latest scrobbles Last.fm accepted, newest first.
+    public var recent: [RecentScrobble] { settings.recentScrobbles }
 
     /// Called when the Last.fm login stopped working.
     public var onAuthProblem: (() -> Void)?
@@ -50,7 +54,7 @@ public final class Scrobbler {
         if !queue.isEmpty && !sending && now >= nextSend { sendQueue() }
     }
 
-    /// Try sending queued scrobbles on the next update (e.g. after reconnecting).
+    /// Try sending queued scrobbles on the next update (e.g. after reconnecting, or "Send Now").
     public func retrySoon() { nextSend = .distantPast }
 
     private func sendNowPlaying(_ np: NowPlaying) {
@@ -83,7 +87,12 @@ public final class Scrobbler {
                 // Only enqueue (which appends) can run meanwhile, so the batch is still at the front.
                 queue.removeFirst(batch.count)
                 saveQueue()
-                for s in batch { Log.write((dryRun ? "[dry run] Would scrobble: " : "Scrobbled: ") + "\(s.artist) - \(s.track)") }
+                var recent = settings.recentScrobbles
+                for s in batch {
+                    Log.write((dryRun ? "[dry run] Would scrobble: " : "Scrobbled: ") + "\(s.artist) - \(s.track)")
+                    recent = RecentScrobbles.adding(RecentScrobble(timestamp: s.timestamp, artist: s.artist, track: s.track), to: recent)
+                }
+                if !dryRun { settings.recentScrobbles = recent }
                 for message in ignored { Log.write("  Last.fm ignored " + message) }
             } catch {
                 let lastFm = error as? LastFmError

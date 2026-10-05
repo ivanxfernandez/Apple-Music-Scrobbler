@@ -36,3 +36,36 @@ import Testing
         #expect(IssueReport.logTail("") == "")
     }
 }
+
+@Suite struct RecentScrobblesTests {
+    static func item(_ i: Int) -> RecentScrobble { RecentScrobble(timestamp: Int64(i), artist: "A", track: "T\(i)") }
+
+    @Test func keepsTheNewestTenNewestFirst() {
+        var list: [RecentScrobble] = []
+        for i in 1...12 { list = RecentScrobbles.adding(Self.item(i), to: list) }
+        #expect(list.count == 10)
+        #expect(list.first?.track == "T12")
+        #expect(list.last?.track == "T3")
+    }
+
+    @Test func showsTheTimeTodayAndTheDateBefore() throws {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = try #require(TimeZone(identifier: "America/Los_Angeles"))
+        let locale = Locale(identifier: "en_US")
+        func at(_ day: Int, _ hour: Int, _ minute: Int) throws -> Date {
+            try #require(calendar.date(from: DateComponents(year: 2026, month: 10, day: day, hour: hour, minute: minute)))
+        }
+        let now = try at(4, 23, 20)
+        let today = RecentScrobble(timestamp: Int64(try at(4, 22, 5).timeIntervalSince1970), artist: "A", track: "T")
+        let earlier = RecentScrobble(timestamp: Int64(try at(2, 9, 30).timeIntervalSince1970), artist: "A", track: "T")
+        let todayText = RecentScrobbles.time(today, now: now, calendar: calendar, locale: locale)
+        let earlierText = RecentScrobbles.time(earlier, now: now, calendar: calendar, locale: locale)
+        #expect(todayText.hasPrefix("10:05") && todayText.hasSuffix("PM") && !todayText.contains("Oct"))
+        #expect(earlierText.hasPrefix("Oct 2") && earlierText.contains("9:30"))
+    }
+
+    @Test func linksToTheSongOnLastFm() {
+        let item = RecentScrobble(timestamp: 0, artist: "AC/DC", track: "T.N.T.")
+        #expect(item.url?.absoluteString == "https://www.last.fm/music/AC%2FDC/_/T.N.T.")
+    }
+}
