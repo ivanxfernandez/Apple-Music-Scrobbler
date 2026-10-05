@@ -26,12 +26,15 @@
     <LastFmApiSecret Condition="'$(LastFmApiSecret)' == ''"></LastFmApiSecret>
     <!-- "owner/repo" to check for new releases; set by the release workflow, empty = no update checks. -->
     <GitHubRepo Condition="'$(GitHubRepo)' == ''"></GitHubRepo>
+    <!-- Discord application ID for the "Listening to" status (public, not a secret). Empty = feature hidden. -->
+    <DiscordClientId Condition="'$(DiscordClientId)' == ''"></DiscordClientId>
   </PropertyGroup>
 
   <ItemGroup>
     <AssemblyMetadata Include="LastFmApiKey" Value="$(LastFmApiKey)" />
     <AssemblyMetadata Include="LastFmApiSecret" Value="$(LastFmApiSecret)" />
     <AssemblyMetadata Include="GitHubRepo" Value="$(GitHubRepo)" />
+    <AssemblyMetadata Include="DiscordClientId" Value="$(DiscordClientId)" />
     <InternalsVisibleTo Include="AppleMusicScrobbler.Tests" />
   </ItemGroup>
 

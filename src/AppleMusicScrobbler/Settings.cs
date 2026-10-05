@@ -22,6 +22,8 @@ namespace AppleMusicScrobbler
         public bool CheckForUpdates { get; set; } = true;
         /// <summary>Remove "Remaster", "Deluxe Edition", "- Single" etc. from titles (see TitleCleaner).</summary>
         public bool CleanTitles { get; set; } = true;
+        /// <summary>Show "Listening to" with the current song on Discord (when Discord is running).</summary>
+        public bool ShowOnDiscord { get; set; } = true;
         /// <summary>Last version we showed an update notification for, so it's only shown once.</summary>
         public string UpdateNotifiedFor { get; set; } = "";
         /// <summary>"Artist - Title" of the latest scrobble, shown in the tray menu.</summary>

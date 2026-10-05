@@ -4,6 +4,7 @@ using System.Drawing;
 using System.Reflection;
 using System.Threading.Tasks;
 using System.Windows.Forms;
+using AppleMusicScrobbler.Discord;
 
 namespace AppleMusicScrobbler
 {
@@ -16,13 +17,14 @@ namespace AppleMusicScrobbler
         readonly LastFmClient _api;
         readonly MediaReader _reader = new MediaReader();
         readonly Scrobbler _scrobbler;
+        readonly DiscordPresence _discord;
 
         readonly NotifyIcon _tray;
         readonly Timer _timer;
         readonly Timer _updateTimer;
         readonly Icon _iconActive, _iconPaused;
         readonly ToolStripMenuItem _nowItem, _lastItem, _updateItem, _loveItem, _pauseItem;
-        readonly ToolStripMenuItem _startupItem, _checkUpdatesItem;
+        readonly ToolStripMenuItem _startupItem, _checkUpdatesItem, _discordItem;
 
         bool _busy;
         bool _authWarningShown;
@@ -36,6 +38,7 @@ namespace AppleMusicScrobbler
             _api = new LastFmClient(settings);
             _scrobbler = new Scrobbler(settings, _api, Program.DryRun);
             _scrobbler.AuthProblem += OnAuthProblem;
+            _discord = new DiscordPresence(settings);
 
             int iconSize = SystemInformation.SmallIconSize.Width;
             _iconActive = IconFactory.CreateIcon(IconFactory.Red, iconSize);
@@ -66,9 +69,15 @@ namespace AppleMusicScrobbler
                 cleanItem.Checked = _settings.CleanTitles;
                 SaveSettings();
             };
+            _discordItem = new ToolStripMenuItem("Show “Listening to” on Discord", null, (s, e) => ToggleDiscord())
+            {
+                Checked = settings.ShowOnDiscord,
+                Visible = DiscordPresence.Available,
+            };
             options.DropDownItems.AddRange(new ToolStripItem[]
             {
                 _startupItem,
+                _discordItem,
                 cleanItem,
                 _checkUpdatesItem,
                 new ToolStripSeparator(),
@@ -144,6 +153,7 @@ namespace AppleMusicScrobbler
             {
                 var np = await _reader.ReadAsync();
                 _scrobbler.Update(np);
+                _discord.Update(_scrobbler.Current); // same (cleaned) track info as Last.fm gets
                 _lastError = null;
             }
             catch (Exception ex)
@@ -166,6 +176,8 @@ namespace AppleMusicScrobbler
             SetText(_nowItem, MenuText(playing));
             SetText(_lastItem, string.IsNullOrEmpty(_scrobbler.LastScrobbled) ? "Nothing scrobbled yet" : MenuText("Last scrobbled: " + _scrobbler.LastScrobbled));
             _loveItem.Enabled = np != null && np.IsValid && !Program.DryRun;
+            SetText(_discordItem, "Show “Listening to” on Discord" +
+                (_settings.ShowOnDiscord && !_discord.IsConnected ? " (waiting for Discord)" : ""));
 
             string tip = (_settings.Paused ? "Scrobbling paused\n" : "") + playing;
             if (_scrobbler.Pending > 0) tip += $"\n{_scrobbler.Pending} waiting to send";
@@ -273,6 +285,14 @@ namespace AppleMusicScrobbler
             _startupItem.Checked = Startup.IsEnabled;
         }
 
+        void ToggleDiscord()
+        {
+            _settings.ShowOnDiscord = !_settings.ShowOnDiscord;
+            _discordItem.Checked = _settings.ShowOnDiscord;
+            SaveSettings();
+            Log.Write(_settings.ShowOnDiscord ? "Discord status turned on" : "Discord status turned off");
+        }
+
         void ToggleUpdateChecks()
         {
             _settings.CheckForUpdates = !_settings.CheckForUpdates;
@@ -317,6 +337,7 @@ namespace AppleMusicScrobbler
         {
             _timer.Stop();
             _updateTimer.Stop();
+            _discord.Dispose();
             _tray.Visible = false;
             _tray.Dispose();
             Log.Write("Stopped");

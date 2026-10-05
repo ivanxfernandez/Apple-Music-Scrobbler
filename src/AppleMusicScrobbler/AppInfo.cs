@@ -22,7 +22,10 @@ namespace AppleMusicScrobbler
 
         /// <summary>"owner/repo" this exe was released from (set by the release workflow), or empty for local builds.</summary>
         public static string GitHubRepo => Metadata("GitHubRepo");
-        public static string RepoUrl => GitHubRepo.Length > 0 ? "https://github.com/" + GitHubRepo : "";
+        /// <summary>Discord application ID used for the "Listening to" status, or empty to disable it.</summary>
+        public static string DiscordClientId => Metadata("DiscordClientId");
+
+        public static string RepoUrl =>GitHubRepo.Length > 0 ? "https://github.com/" + GitHubRepo : "";
 
         static string Metadata(string key) =>
             Assembly.GetExecutingAssembly().GetCustomAttributes<AssemblyMetadataAttribute>()
