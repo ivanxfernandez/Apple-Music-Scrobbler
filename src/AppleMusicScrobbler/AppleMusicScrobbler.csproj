@@ -1,0 +1,48 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <!-- .NET Framework 4.8 ships with Windows 10/11, so the exe runs without installing anything. -->
+    <TargetFramework>net48</TargetFramework>
+    <LangVersion>latest</LangVersion>
+    <AssemblyName>AppleMusicScrobbler</AssemblyName>
+    <RootNamespace>AppleMusicScrobbler</RootNamespace>
+    <ApplicationIcon>app.ico</ApplicationIcon>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <DebugType>embedded</DebugType>
+    <GenerateBindingRedirectsOutputType>true</GenerateBindingRedirectsOutputType>
+
+    <Version>1.0.0</Version>
+    <Product>Apple Music Scrobbler</Product>
+    <Description>Scrobbles the Apple Music app for Windows to Last.fm</Description>
+    <Copyright>MIT License</Copyright>
+
+    <!--
+      Optional: bake a Last.fm API key into release builds so users can skip creating their own:
+        dotnet build -c Release -p:LastFmApiKey=xxxx -p:LastFmApiSecret=yyyy
+      Without it, the setup window asks each user for their own (free) key.
+    -->
+    <LastFmApiKey Condition="'$(LastFmApiKey)' == ''"></LastFmApiKey>
+    <LastFmApiSecret Condition="'$(LastFmApiSecret)' == ''"></LastFmApiSecret>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <AssemblyMetadata Include="LastFmApiKey" Value="$(LastFmApiKey)" />
+    <AssemblyMetadata Include="LastFmApiSecret" Value="$(LastFmApiSecret)" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Reference Include="System.Windows.Forms" />
+    <Reference Include="System.Drawing" />
+    <Reference Include="System.Net.Http" />
+    <Reference Include="System.Security" />
+    <Reference Include="System.Xml.Linq" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Windows Runtime APIs (Windows.Media.Control) for reading what Apple Music is playing -->
+    <PackageReference Include="Microsoft.Windows.SDK.Contracts" Version="10.0.19041.1" />
+    <PackageReference Include="Microsoft.NETFramework.ReferenceAssemblies" Version="1.0.3" PrivateAssets="all" />
+  </ItemGroup>
+
+</Project>
