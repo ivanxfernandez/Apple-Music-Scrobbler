@@ -14,7 +14,7 @@ Same repo, same version numbers, one GitHub release containing both the Windows 
 
 | Topic | Decision | Why |
 | --- | --- | --- |
-| Language/UI | Swift + SwiftUI `MenuBarExtra`, agent app (`LSUIElement`, no Dock icon) | Native, small, no runtime to install |
+| Language/UI | Swift, agent app (`LSUIElement`, no Dock icon). Menu bar: AppKit `NSStatusItem` + `NSMenu` (not SwiftUI `MenuBarExtra`: a plain menu matches the Windows tray menu 1:1 and updates its text every second cheaply). Setup window: SwiftUI | Native, small, no runtime to install |
 | Minimum macOS | 13 Ventura | `MenuBarExtra` and `SMAppService` (start at login) need 13+ |
 | Repo layout | New `macos/` folder; Windows stays in `src/` and `tests/` | Don't break the Windows build, workflows or README links |
 | Build | Swift Package Manager (`macos/Package.swift`) plus a script that wraps the binary into `Apple Music Scrobbler.app` (Info.plist, icon) | Builds from the command line, works in CI and for an agent without the Xcode GUI |

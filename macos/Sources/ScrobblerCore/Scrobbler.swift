@@ -124,7 +124,7 @@ public final class Scrobbler {
     }
 }
 
-extension Error {
+public extension Error {
     /// URLSession errors read better as their localized text; Last.fm errors as their own description.
     var localizedDescriptionIfUseful: String {
         self is LastFmError ? "\(self)" : localizedDescription
