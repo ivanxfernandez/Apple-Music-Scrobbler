@@ -1,0 +1,132 @@
+import Foundation
+
+/// Feeds player snapshots to the PlayTracker and delivers what it decides to Last.fm, keeping
+/// a queue on disk so nothing is lost while offline. Called once a second from the main thread.
+@MainActor
+public final class Scrobbler {
+    private static let maxBatch = 50
+
+    private let settings: Settings
+    private let api: LastFmClient
+    private let dryRun: Bool
+    private let queueURL: URL
+    private var queue: [QueuedScrobble]
+
+    private let tracker = PlayTracker()
+    private var lastUpdate = Date()
+    private var nextSend = Date.distantPast
+    private var sending = false
+
+    public private(set) var current: NowPlaying?
+    public var lastScrobbled: String { settings.lastScrobbled }
+    public var pending: Int { queue.count }
+
+    /// Called when the Last.fm login stopped working.
+    public var onAuthProblem: (() -> Void)?
+
+    public init(settings: Settings, api: LastFmClient, dryRun: Bool, folder: URL = AppInfo.dataFolder) {
+        self.settings = settings
+        self.api = api
+        self.dryRun = dryRun
+        queueURL = folder.appendingPathComponent("queue.json")
+        queue = dryRun ? [] : Self.loadQueue(queueURL)
+        if !queue.isEmpty { Log.write("\(queue.count) unsent scrobble(s) from last time") }
+    }
+
+    public func update(_ snapshot: NowPlaying?) {
+        let now = Date()
+        let elapsed = now.timeIntervalSince(lastUpdate)
+        lastUpdate = now
+
+        let np = settings.cleanTitles ? TitleCleaner.apply(snapshot) : snapshot
+        current = np
+
+        let events = tracker.update(np, elapsedSeconds: elapsed, unixNow: Int64(now.timeIntervalSince1970))
+        if !settings.paused, let np {
+            if events.nowPlaying { sendNowPlaying(np) }
+            if let startedAt = events.scrobbleAt { enqueue(np, startedAt: startedAt) }
+        }
+
+        if !queue.isEmpty && !sending && now >= nextSend { sendQueue() }
+    }
+
+    /// Try sending queued scrobbles on the next update (e.g. after reconnecting).
+    public func retrySoon() { nextSend = .distantPast }
+
+    private func sendNowPlaying(_ np: NowPlaying) {
+        Log.write("Now playing: \(np)" + (np.album.isEmpty ? "" : " [\(np.album)]"))
+        if dryRun { return }
+        Task {
+            do {
+                try await api.updateNowPlaying(np)
+            } catch {
+                Log.write("Now-playing update failed: \(error)")
+                if (error as? LastFmError)?.isAuthProblem == true { onAuthProblem?() }
+            }
+        }
+    }
+
+    private func enqueue(_ np: NowPlaying, startedAt: Int64) {
+        queue.append(QueuedScrobble(artist: np.artist, track: np.title, album: np.album, duration: np.duration, timestamp: startedAt))
+        saveQueue()
+        nextSend = .distantPast
+        settings.lastScrobbled = np.description
+    }
+
+    private func sendQueue() {
+        sending = true
+        let batch = Array(queue.prefix(Self.maxBatch))
+        Task {
+            defer { sending = false }
+            do {
+                let ignored = dryRun ? [] : try await api.scrobble(batch)
+                // Only enqueue (which appends) can run meanwhile, so the batch is still at the front.
+                queue.removeFirst(batch.count)
+                saveQueue()
+                for s in batch { Log.write((dryRun ? "[dry run] Would scrobble: " : "Scrobbled: ") + "\(s.artist) - \(s.track)") }
+                for message in ignored { Log.write("  Last.fm ignored " + message) }
+            } catch {
+                let lastFm = error as? LastFmError
+                if let lastFm, !lastFm.isTemporary, !lastFm.isAuthProblem {
+                    // Last.fm rejected the request itself; retrying the same data would fail forever.
+                    queue.removeFirst(batch.count)
+                    saveQueue()
+                    Log.write("Last.fm rejected \(batch.count) scrobble(s): \(error)")
+                    for s in batch { Log.write("  dropped: \(s.artist) - \(s.track)") }
+                } else {
+                    let auth = lastFm?.isAuthProblem == true
+                    nextSend = Date().addingTimeInterval(auth ? 30 * 60 : 2 * 60)
+                    Log.write("Couldn't scrobble, will retry (\(queue.count) waiting): \(error.localizedDescriptionIfUseful)")
+                    if auth { onAuthProblem?() }
+                }
+            }
+        }
+    }
+
+    private static func loadQueue(_ url: URL) -> [QueuedScrobble] {
+        guard FileManager.default.fileExists(atPath: url.path) else { return [] }
+        do {
+            return try JSONDecoder().decode([QueuedScrobble].self, from: Data(contentsOf: url))
+        } catch {
+            Log.write("Could not read the scrobble queue: \(error)")
+            return []
+        }
+    }
+
+    private func saveQueue() {
+        if dryRun { return }
+        do {
+            try FileManager.default.createDirectory(at: queueURL.deletingLastPathComponent(), withIntermediateDirectories: true)
+            try JSONEncoder().encode(queue).write(to: queueURL, options: .atomic)
+        } catch {
+            Log.write("Could not save the scrobble queue: \(error)")
+        }
+    }
+}
+
+extension Error {
+    /// URLSession errors read better as their localized text; Last.fm errors as their own description.
+    var localizedDescriptionIfUseful: String {
+        self is LastFmError ? "\(self)" : localizedDescription
+    }
+}
