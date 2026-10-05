@@ -37,7 +37,7 @@ namespace AppleMusicScrobbler
         bool _sending;
 
         public NowPlaying Current { get; private set; }
-        public string LastScrobbled { get; private set; }
+        public string LastScrobbled => _settings.LastScrobbled;
         public int Pending => _queue.Count;
 
         /// <summary>Raised when the Last.fm login stopped working.</summary>
@@ -103,8 +103,14 @@ namespace AppleMusicScrobbler
                 Timestamp = startedAt,
             });
             SaveQueue();
-            LastScrobbled = np.ToString();
             _nextSend = DateTime.MinValue;
+
+            _settings.LastScrobbled = np.ToString();
+            if (!_dryRun)
+            {
+                try { _settings.Save(); }
+                catch (Exception ex) { Log.Write("Could not save settings: " + ex.Message); }
+            }
         }
 
         async Task SendQueueAsync()

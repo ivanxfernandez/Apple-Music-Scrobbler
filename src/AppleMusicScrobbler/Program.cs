@@ -11,10 +11,24 @@ namespace AppleMusicScrobbler
         /// <summary>--dry-run: read Apple Music and log what would be scrobbled, without contacting Last.fm.</summary>
         public static bool DryRun { get; private set; }
 
+        /// <summary>--open-menu: open the tray menu a few seconds after starting (used by tools/screenshots.ps1).</summary>
+        public static bool OpenMenuOnStart { get; private set; }
+
         [STAThread]
         static void Main(string[] args)
         {
-            DryRun = args.Any(a => a.Equals("--dry-run", StringComparison.OrdinalIgnoreCase));
+            bool HasFlag(string flag) => args.Any(a => a.Equals(flag, StringComparison.OrdinalIgnoreCase));
+            DryRun = HasFlag("--dry-run");
+            OpenMenuOnStart = HasFlag("--open-menu");
+
+            if (HasFlag("--show-setup"))
+            {
+                // Preview of the first-run window (used by tools/screenshots.ps1); doesn't touch the running app.
+                Application.EnableVisualStyles();
+                Application.SetCompatibleTextRenderingDefault(false);
+                using (var setup = new SetupForm(new Settings())) setup.ShowDialog();
+                return;
+            }
 
             using (var mutex = new Mutex(true, @"Local\AppleMusicScrobbler", out bool firstInstance))
             {

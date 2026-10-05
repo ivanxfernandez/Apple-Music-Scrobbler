@@ -120,6 +120,13 @@ namespace AppleMusicScrobbler
             };
             if (AppInfo.GitHubRepo.Length > 0) _updateTimer.Start();
 
+            if (Program.OpenMenuOnStart)
+            {
+                var openMenu = new Timer { Interval = 4000 };
+                openMenu.Tick += (s, e) => { openMenu.Dispose(); OpenMenu(); };
+                openMenu.Start();
+            }
+
             Log.Write(Program.DryRun
                 ? $"Started {AppInfo.Version} (dry run: nothing is sent to Last.fm)"
                 : $"Started {AppInfo.Version}, scrobbling as {_settings.Username}");
@@ -157,7 +164,7 @@ namespace AppleMusicScrobbler
             string playing = np != null && np.IsValid ? np.ToString() + (np.IsPlaying ? "" : " (paused)") : "Nothing playing";
 
             SetText(_nowItem, MenuText(playing));
-            SetText(_lastItem, _scrobbler.LastScrobbled != null ? MenuText("Last scrobbled: " + _scrobbler.LastScrobbled) : "Nothing scrobbled yet");
+            SetText(_lastItem, string.IsNullOrEmpty(_scrobbler.LastScrobbled) ? "Nothing scrobbled yet" : MenuText("Last scrobbled: " + _scrobbler.LastScrobbled));
             _loveItem.Enabled = np != null && np.IsValid && !Program.DryRun;
 
             string tip = (_settings.Paused ? "Scrobbling paused\n" : "") + playing;

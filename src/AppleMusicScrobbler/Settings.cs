@@ -24,6 +24,8 @@ namespace AppleMusicScrobbler
         public bool CleanTitles { get; set; } = true;
         /// <summary>Last version we showed an update notification for, so it's only shown once.</summary>
         public string UpdateNotifiedFor { get; set; } = "";
+        /// <summary>"Artist - Title" of the latest scrobble, shown in the tray menu.</summary>
+        public string LastScrobbled { get; set; } = "";
 
         [XmlIgnore] public string ApiSecret { get; set; } = "";
         [XmlIgnore] public string SessionKey { get; set; } = "";
