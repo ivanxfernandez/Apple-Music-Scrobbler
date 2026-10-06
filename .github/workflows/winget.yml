@@ -22,6 +22,7 @@ jobs:
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
+          WINGET_SCHEMA: '1.10.0' # the runner's winget doesn't know the newest manifest format yet
         run: |
           version='${{ inputs.version }}'
           if [ -z "$version" ]; then version=$(gh release view --json tagName -q .tagName); fi

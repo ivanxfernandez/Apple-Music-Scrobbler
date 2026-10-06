@@ -11,7 +11,8 @@ VERSION="${1:?usage: make-manifests.sh <version>}"
 VERSION="${VERSION#v}"
 REPO="ivanxfernandez/Apple-Music-Scrobbler"
 ID="ivanxfernandez.AppleMusicScrobbler"
-SCHEMA="1.10.0"  # understood by winget 1.6+; winget-pkgs accepts it
+# winget-pkgs asks for the newest format; WINGET_SCHEMA=1.10.0 for older winget clients (the CI runner).
+SCHEMA="${WINGET_SCHEMA:-1.12.0}"
 
 read -r URL SHA DATE < <(curl -fsSL "https://api.github.com/repos/$REPO/releases/tags/v$VERSION" | python3 -c '
 import json, sys
