@@ -1,5 +1,5 @@
 #!/bin/bash
-# Writes the winget manifests for a published release into manifests/i/IvanFernandez/AppleMusicScrobbler/<version>/,
+# Writes the winget manifests for a published release into manifests/i/ivanxfernandez/AppleMusicScrobbler/<version>/,
 # laid out like microsoft/winget-pkgs, using the exe's download URL and SHA-256 from the GitHub release.
 #
 #   packaging/winget/make-manifests.sh 1.7.0
@@ -10,7 +10,7 @@ cd "$(dirname "$0")"
 VERSION="${1:?usage: make-manifests.sh <version>}"
 VERSION="${VERSION#v}"
 REPO="ivanxfernandez/Apple-Music-Scrobbler"
-ID="IvanFernandez.AppleMusicScrobbler"
+ID="ivanxfernandez.AppleMusicScrobbler"
 SCHEMA="1.10.0"  # understood by winget 1.6+; winget-pkgs accepts it
 
 read -r URL SHA DATE < <(curl -fsSL "https://api.github.com/repos/$REPO/releases/tags/v$VERSION" | python3 -c '
@@ -21,7 +21,7 @@ assert asset["digest"].startswith("sha256:"), "no SHA-256 digest on the release 
 print(asset["browser_download_url"], asset["digest"][7:].upper(), release["published_at"][:10])
 ')
 
-OUT="manifests/i/IvanFernandez/AppleMusicScrobbler/$VERSION"
+OUT="manifests/i/ivanxfernandez/AppleMusicScrobbler/$VERSION"
 mkdir -p "$OUT"
 
 cat > "$OUT/$ID.yaml" <<YAML

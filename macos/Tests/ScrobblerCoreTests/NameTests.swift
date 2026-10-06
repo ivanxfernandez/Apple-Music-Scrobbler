@@ -12,7 +12,11 @@ import Testing
         ("Part 1 - Intro - 2015 Remastered Version", "Part 1 - Intro"),
         // Seen on the Mac (Music app, 2026-10-04)
         ("Pretty Tied Up (The Perils Of Rock N' Roll Decadence) [2022 Remaster]", "Pretty Tied Up (The Perils Of Rock N' Roll Decadence)"),
+        ("Disorder (2019 Digital Master)", "Disorder"),
+        ("She's Lost Control - 2019 Digital Master", "She's Lost Control"),
         // Left alone
+        ("Master of Puppets", "Master of Puppets"),
+        ("Master of Puppets (Live)", "Master of Puppets (Live)"),
         ("Smells Like Teen Spirit (Live)", "Smells Like Teen Spirit (Live)"),
         ("Song (feat. Someone)", "Song (feat. Someone)"),
         ("Song - Acoustic", "Song - Acoustic"),
@@ -32,6 +36,7 @@ import Testing
         ("Espresso - Single", "Espresso"),
         ("Something - EP", "Something"),
         ("Foo (Deluxe Edition) - EP", "Foo"),
+        ("Unknown Pleasures (2019 Digital Master)", "Unknown Pleasures"),
         // Left alone
         ("SMITHEREENS", "SMITHEREENS"),
         ("Single", "Single"),

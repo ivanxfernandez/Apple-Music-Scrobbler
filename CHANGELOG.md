@@ -5,6 +5,7 @@
 - **Pause for 1 hour**: next to *Pause scrobbling*; scrobbling resumes by itself, and the menu shows "Paused until 14:30" meanwhile.
 - **Your week**: a submenu with the last 7 days on Last.fm (scrobbles, top artist, top song), and an optional notification with the same on Sunday evenings (*Options*, off by default).
 - **Mac: the current song with its album art** at the top of the menu; click it to open the song on Last.fm.
+- Title cleanup also removes "Digital Master" tags: *"Disorder (2019 Digital Master)"* is scrobbled as *"Disorder"*.
 - winget manifests for the Windows app (`packaging/winget`), checked on every change by a workflow that installs the app from them.
 
 ## 1.6.1

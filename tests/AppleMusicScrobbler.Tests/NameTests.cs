@@ -33,7 +33,11 @@ namespace AppleMusicScrobbler.Tests
         [InlineData("Bohemian Rhapsody (Remastered 2011)", "Bohemian Rhapsody")]
         [InlineData("Paint It Black (2009 Digital Remaster)", "Paint It Black")]
         [InlineData("Part 1 - Intro - 2015 Remastered Version", "Part 1 - Intro")]
+        [InlineData("Disorder (2019 Digital Master)", "Disorder")]
+        [InlineData("She's Lost Control - 2019 Digital Master", "She's Lost Control")]
         // Left alone
+        [InlineData("Master of Puppets", "Master of Puppets")]
+        [InlineData("Master of Puppets (Live)", "Master of Puppets (Live)")]
         [InlineData("Smells Like Teen Spirit (Live)", "Smells Like Teen Spirit (Live)")]
         [InlineData("Song (feat. Someone)", "Song (feat. Someone)")]
         [InlineData("Song - Acoustic", "Song - Acoustic")]
@@ -51,6 +55,7 @@ namespace AppleMusicScrobbler.Tests
         [InlineData("Espresso - Single", "Espresso")]
         [InlineData("Something - EP", "Something")]
         [InlineData("Foo (Deluxe Edition) - EP", "Foo")]
+        [InlineData("Unknown Pleasures (2019 Digital Master)", "Unknown Pleasures")]
         // Left alone
         [InlineData("SMITHEREENS", "SMITHEREENS")]
         [InlineData("Single", "Single")]

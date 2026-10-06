@@ -15,11 +15,11 @@ namespace AppleMusicScrobbler
     {
         const RegexOptions Options = RegexOptions.IgnoreCase | RegexOptions.CultureInvariant | RegexOptions.Compiled;
 
-        // "(2011 Remaster)", "[Remastered 2009]", "(2009 Digital Remaster)", "(Remastered Version)"
-        static readonly Regex BracketedRemaster = new Regex(@"\s*[\(\[][^\(\)\[\]]*\bremaster(ed)?\b[^\(\)\[\]]*[\)\]]", Options);
+        // "(2011 Remaster)", "[Remastered 2009]", "(2009 Digital Remaster)", "(Remastered Version)", "(2019 Digital Master)"
+        static readonly Regex BracketedRemaster = new Regex(@"\s*[\(\[][^\(\)\[\]]*\b(remaster(ed)?|digital master)\b[^\(\)\[\]]*[\)\]]", Options);
 
         // " - 2011 Remaster", " - Remastered 2009", " - 2015 Remastered Version" (last dash-separated part only)
-        static readonly Regex DashedRemaster = new Regex(@"\s+[-–—]\s+[^-–—]*\bremaster(ed)?\b[^-–—]*$", Options);
+        static readonly Regex DashedRemaster = new Regex(@"\s+[-–—]\s+[^-–—]*\b(remaster(ed)?|digital master)\b[^-–—]*$", Options);
 
         // Albums: "(Deluxe Edition)", "[Expanded Version]", "(20th Anniversary Edition)", "(Bonus Track Version)"
         static readonly Regex AlbumEdition = new Regex(

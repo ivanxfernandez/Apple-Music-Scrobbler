@@ -12,11 +12,11 @@ public enum TitleCleaner {
         try! NSRegularExpression(pattern: pattern, options: [.caseInsensitive])
     }
 
-    // "(2011 Remaster)", "[Remastered 2009]", "(2009 Digital Remaster)", "(Remastered Version)"
-    private static let bracketedRemaster = regex(#"\s*[\(\[][^\(\)\[\]]*\bremaster(ed)?\b[^\(\)\[\]]*[\)\]]"#)
+    // "(2011 Remaster)", "[Remastered 2009]", "(2009 Digital Remaster)", "(Remastered Version)", "(2019 Digital Master)"
+    private static let bracketedRemaster = regex(#"\s*[\(\[][^\(\)\[\]]*\b(remaster(ed)?|digital master)\b[^\(\)\[\]]*[\)\]]"#)
 
     // " - 2011 Remaster", " - Remastered 2009", " - 2015 Remastered Version" (last dash-separated part only)
-    private static let dashedRemaster = regex(#"\s+[-–—]\s+[^-–—]*\bremaster(ed)?\b[^-–—]*$"#)
+    private static let dashedRemaster = regex(#"\s+[-–—]\s+[^-–—]*\b(remaster(ed)?|digital master)\b[^-–—]*$"#)
 
     // Albums: "(Deluxe Edition)", "[Expanded Version]", "(20th Anniversary Edition)", "(Bonus Track Version)"
     private static let albumEdition = regex(

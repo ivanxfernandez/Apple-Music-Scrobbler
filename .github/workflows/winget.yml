@@ -26,7 +26,7 @@ jobs:
           version='${{ inputs.version }}'
           if [ -z "$version" ]; then version=$(gh release view --json tagName -q .tagName); fi
           packaging/winget/make-manifests.sh "$version"
-          echo "DIR=packaging/winget/manifests/i/IvanFernandez/AppleMusicScrobbler/${version#v}" >> "$GITHUB_ENV"
+          echo "DIR=packaging/winget/manifests/i/ivanxfernandez/AppleMusicScrobbler/${version#v}" >> "$GITHUB_ENV"
 
       - name: winget available?
         shell: pwsh
