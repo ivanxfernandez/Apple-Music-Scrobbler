@@ -28,6 +28,25 @@ public final class Settings {
         get { defaults.bool(forKey: "Paused") }
         set { defaults.set(newValue, forKey: "Paused") }
     }
+    /// "Pause for an hour": scrobbling resumes by itself at this time.
+    public var pausedUntil: Date? {
+        get { defaults.object(forKey: "PausedUntil") as? Date }
+        set { defaults.set(newValue, forKey: "PausedUntil") }
+    }
+    /// Paused, either until turned back on or until `pausedUntil`.
+    public func isPaused(at now: Date = Date()) -> Bool {
+        paused || (pausedUntil.map { $0 > now } ?? false)
+    }
+    /// A notification with the week's stats on Sunday evenings.
+    public var weeklySummary: Bool {
+        get { defaults.bool(forKey: "WeeklySummary") }
+        set { defaults.set(newValue, forKey: "WeeklySummary") }
+    }
+    /// When the last weekly notification was shown (so it's shown once per Sunday).
+    public var lastWeeklySummary: Date? {
+        get { defaults.object(forKey: "LastWeeklySummary") as? Date }
+        set { defaults.set(newValue, forKey: "LastWeeklySummary") }
+    }
     public var checkForUpdates: Bool {
         get { defaults.bool(forKey: "CheckForUpdates") }
         set { defaults.set(newValue, forKey: "CheckForUpdates") }

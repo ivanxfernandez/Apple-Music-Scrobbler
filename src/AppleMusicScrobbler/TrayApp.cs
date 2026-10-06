@@ -26,6 +26,11 @@ namespace AppleMusicScrobbler
         readonly Timer _updateTimer;
         readonly Icon _iconActive, _iconPaused;
         readonly ToolStripMenuItem _nowItem, _lastItem, _recentItem, _updateItem, _loveItem, _ignoreItem, _ignoredListItem, _pauseItem;
+        readonly ToolStripMenuItem _pauseHourItem, _weekItem, _weeklySummaryItem;
+        WeekSummary _week;
+        DateTime _weekLoadedAt = DateTime.MinValue;
+        bool _weekLoading, _weekFailed;
+        DateTime _lastWeeklyCheck = DateTime.MinValue;
         readonly ToolStripMenuItem _startupItem, _checkUpdatesItem, _discordItem, _loveShortcutItem, _nowPlayingNotificationItem;
         HotKey _loveHotKey;
         /// <summary>Whether songs (artist + title as sent to Last.fm) are loved there; filled in as songs play.</summary>
@@ -83,7 +88,17 @@ namespace AppleMusicScrobbler
             _ignoredListItem = new ToolStripMenuItem(L("Ignored artists"));
             _ignoredListItem.DropDownItems.Add("No ignored artists"); // placeholder so the arrow shows; filled when opened
             _ignoredListItem.DropDownOpening += (s, e) => BuildIgnoredMenu();
-            _pauseItem = new ToolStripMenuItem(L("Pause scrobbling"), null, (s, e) => TogglePause()) { Checked = settings.Paused };
+            _pauseItem = new ToolStripMenuItem(L("Pause scrobbling"), null, (s, e) => TogglePause()) { Checked = settings.IsPaused() };
+            _pauseHourItem = new ToolStripMenuItem(L("Pause for 1 hour"), null, (s, e) => PauseForAnHour());
+            _weekItem = new ToolStripMenuItem(L("Your week"));
+            _weekItem.DropDownItems.Add(L("Loading…")); // placeholder so the arrow shows; filled when opened
+            _weekItem.DropDownOpening += (s, e) => BuildWeekMenu();
+            _weeklySummaryItem = new ToolStripMenuItem(L("Weekly summary on Sunday evenings"), null, (s, e) =>
+            {
+                _settings.WeeklySummary = !_settings.WeeklySummary;
+                _weeklySummaryItem.Checked = _settings.WeeklySummary;
+                SaveSettings();
+            }) { Checked = settings.WeeklySummary };
 
             _startupItem = new ToolStripMenuItem(L("Start with Windows"), null, (s, e) => ToggleStartup()) { Checked = Startup.IsEnabled };
             _checkUpdatesItem = new ToolStripMenuItem(L("Check for updates automatically"), null, (s, e) => ToggleUpdateChecks())
@@ -125,6 +140,7 @@ namespace AppleMusicScrobbler
                 _startupItem,
                 _discordItem,
                 _nowPlayingNotificationItem,
+                _weeklySummaryItem,
                 _loveShortcutItem,
                 cleanItem,
                 mainArtistItem,
@@ -143,11 +159,13 @@ namespace AppleMusicScrobbler
                 _nowItem,
                 _lastItem,
                 _recentItem,
+                _weekItem,
                 new ToolStripSeparator(),
                 _updateItem,
                 _loveItem,
                 _ignoreItem,
                 _pauseItem,
+                _pauseHourItem,
                 new ToolStripMenuItem(L("Open my Last.fm profile"), null, (s, e) => AppInfo.OpenUrl("https://www.last.fm/user/" + Uri.EscapeDataString(_settings.Username ?? ""))),
                 options,
                 new ToolStripSeparator(),
@@ -158,7 +176,7 @@ namespace AppleMusicScrobbler
 
             _tray = new NotifyIcon
             {
-                Icon = settings.Paused ? _iconPaused : _iconActive,
+                Icon = settings.IsPaused() ? _iconPaused : _iconActive,
                 Text = AppInfo.Name,
                 ContextMenuStrip = menu,
                 Visible = true,
@@ -224,6 +242,18 @@ namespace AppleMusicScrobbler
             _busy = true;
             try
             {
+                // "Pause for an hour" ends by itself.
+                if (_settings.PausedUntil > 0 && _settings.PausedUntil <= DateTimeOffset.UtcNow.ToUnixTimeSeconds())
+                {
+                    _settings.PausedUntil = 0;
+                    SaveSettings();
+                    Log.Write("Scrobbling resumed (the hour is up)");
+                }
+                if ((DateTime.UtcNow - _lastWeeklyCheck).TotalSeconds > 60)
+                {
+                    _lastWeeklyCheck = DateTime.UtcNow;
+                    _ = WeeklyNotificationIfDueAsync();
+                }
                 var np = await _reader.ReadAsync();
                 _scrobbler.Update(np);
                 // Same (cleaned) track info as Last.fm gets; nothing for ignored artists.
@@ -267,7 +297,15 @@ namespace AppleMusicScrobbler
             SetText(_discordItem, _settings.ShowOnDiscord && !_discord.IsConnected
                 ? L("Show “Listening to” on Discord (waiting for Discord)") : L("Show “Listening to” on Discord"));
 
-            string tip = (_settings.Paused ? L("Scrobbling paused") + "\n" : "") + playing;
+            bool paused = _settings.IsPaused();
+            _pauseItem.Checked = paused;
+            SetText(_pauseItem, _settings.PausedUntil > DateTimeOffset.UtcNow.ToUnixTimeSeconds()
+                ? L("Paused until {0}", DateTimeOffset.FromUnixTimeSeconds(_settings.PausedUntil).LocalDateTime.ToString("t"))
+                : L("Pause scrobbling"));
+            _pauseHourItem.Visible = !paused;
+            var icon = paused ? _iconPaused : _iconActive;
+            if (_tray.Icon != icon) _tray.Icon = icon;
+            string tip = (paused ? L("Scrobbling paused") + "\n" : "") + playing;
             if (_scrobbler.Pending > 0) tip += "\n" + L("{0} waiting to send", _scrobbler.Pending);
             if (tip.Length > 63) tip = tip.Substring(0, 62) + "…"; // Windows limit
             if (_tray.Text != tip) _tray.Text = tip;
@@ -538,14 +576,97 @@ namespace AppleMusicScrobbler
             }
         }
 
+        /// <summary>Pauses until turned back on; when paused (either way), resumes.</summary>
         void TogglePause()
         {
-            _settings.Paused = !_settings.Paused;
-            _pauseItem.Checked = _settings.Paused;
-            _tray.Icon = _settings.Paused ? _iconPaused : _iconActive;
+            if (_settings.IsPaused())
+            {
+                _settings.Paused = false;
+                _settings.PausedUntil = 0;
+                Log.Write("Scrobbling resumed");
+            }
+            else
+            {
+                _settings.Paused = true;
+                Log.Write("Scrobbling paused");
+            }
             SaveSettings();
-            Log.Write(_settings.Paused ? "Scrobbling paused" : "Scrobbling resumed");
             UpdateUi();
+        }
+
+        void PauseForAnHour()
+        {
+            _settings.PausedUntil = DateTimeOffset.UtcNow.AddHours(1).ToUnixTimeSeconds();
+            SaveSettings();
+            Log.Write("Scrobbling paused for an hour");
+            UpdateUi();
+        }
+
+        /// <summary>Fills the "Your week" submenu, loading the numbers from Last.fm at most every 15 minutes.</summary>
+        void BuildWeekMenu()
+        {
+            var items = _weekItem.DropDownItems;
+            items.Clear();
+            void Info(string text) => items.Add(new ToolStripMenuItem(MenuText(text)) { Enabled = false });
+            if (string.IsNullOrEmpty(_settings.Username) || Program.DryRun)
+            {
+                Info(L("Connect to Last.fm to see your week"));
+                return;
+            }
+            if ((DateTime.UtcNow - _weekLoadedAt).TotalMinutes > 15 && !_weekLoading) _ = LoadWeekAsync();
+            if (_week != null)
+            {
+                Info(L("{0} scrobbles in the last 7 days", _week.Scrobbles.ToString("N0")));
+                if (_week.TopArtist != null) Info(L("Top artist: {0} ({1} plays)", _week.TopArtist, _week.TopArtistPlays.ToString("N0")));
+                if (_week.TopTrack != null) Info(L("Top song: {0} ({1} plays)", $"{_week.TopTrackArtist} — {_week.TopTrack}", _week.TopTrackPlays.ToString("N0")));
+            }
+            else
+            {
+                Info(_weekFailed ? L("Couldn't load your week. Try again later.") : L("Loading…"));
+            }
+            items.Add(new ToolStripSeparator());
+            items.Add(new ToolStripMenuItem(L("Open my week on Last.fm"), null, (s, e) => AppInfo.OpenUrl(WeekSummary.Url(_settings.Username))));
+        }
+
+        async Task LoadWeekAsync()
+        {
+            _weekLoading = true;
+            try
+            {
+                _week = await _api.GetWeekSummaryAsync(_settings.Username);
+                _weekFailed = false;
+                _weekLoadedAt = DateTime.UtcNow;
+            }
+            catch
+            {
+                _weekFailed = true;
+                _weekLoadedAt = DateTime.UtcNow.AddMinutes(-14); // try again in a minute
+            }
+            _weekLoading = false;
+            if (_weekItem.DropDown.Visible) BuildWeekMenu();
+        }
+
+        /// <summary>Sundays from 7 pm, once: a notification with the week's numbers.</summary>
+        async Task WeeklyNotificationIfDueAsync()
+        {
+            var now = DateTime.Now;
+            string today = now.ToString("yyyy-MM-dd");
+            if (!_settings.WeeklySummary || Program.DryRun || string.IsNullOrEmpty(_settings.Username) ||
+                now.DayOfWeek != DayOfWeek.Sunday || now.Hour < 19 || _settings.LastWeeklySummary == today) return;
+            _settings.LastWeeklySummary = today; // even if it fails, don't retry every minute
+            SaveSettings();
+            try
+            {
+                var week = await _api.GetWeekSummaryAsync(_settings.Username);
+                string body = L("{0} scrobbles in the last 7 days", week.Scrobbles.ToString("N0"));
+                if (week.TopArtist != null) body += "\n" + L("Top artist: {0} ({1} plays)", week.TopArtist, week.TopArtistPlays.ToString("N0"));
+                if (week.TopTrack != null) body += "\n" + L("Top song: {0} ({1} plays)", $"{week.TopTrackArtist} — {week.TopTrack}", week.TopTrackPlays.ToString("N0"));
+                ShowBalloon(L("Your week on Last.fm"), body, ToolTipIcon.Info, WeekSummary.Url(_settings.Username));
+            }
+            catch (Exception ex)
+            {
+                Log.Write("Weekly summary failed: " + ex.Message);
+            }
         }
 
         void ToggleStartup()

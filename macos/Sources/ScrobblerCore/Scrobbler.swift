@@ -62,9 +62,10 @@ public final class Scrobbler {
         current = np
 
         let events = tracker.update(np, elapsedSeconds: elapsed, unixNow: Int64(now.timeIntervalSince1970))
-        if !settings.paused, let np, IgnoreList.isIgnored(np.artist, in: settings.ignoredArtists) {
+        let paused = settings.isPaused(at: now)
+        if !paused, let np, IgnoreList.isIgnored(np.artist, in: settings.ignoredArtists) {
             if events.nowPlaying { Log.write("Not scrobbling \(np) (artist is on the ignore list)") }
-        } else if !settings.paused, var np {
+        } else if !paused, var np {
             // Only what's sent changes; the tracker and Discord keep the full credit.
             if settings.mainArtistOnly && np.isValid { np.artist = mainArtist.resolve(np.artist) }
             if events.nowPlaying {

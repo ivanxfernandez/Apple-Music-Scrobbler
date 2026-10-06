@@ -2,7 +2,7 @@ import Foundation
 
 public enum Http {
     /// One shared session for the whole app (Last.fm, GitHub, iTunes Search).
-    static let session: URLSession = {
+    public static let session: URLSession = {
         let config = URLSessionConfiguration.ephemeral
         config.timeoutIntervalForRequest = 20
         config.httpAdditionalHeaders = ["User-Agent": "AppleMusicScrobbler/\(AppInfo.version) (macOS)"]

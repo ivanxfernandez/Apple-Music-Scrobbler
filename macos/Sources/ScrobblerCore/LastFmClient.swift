@@ -123,6 +123,14 @@ public final class LastFmClient {
         return result
     }
 
+    /// An unauthenticated read (GET with the API key), returning the raw XML.
+    func get(_ method: String, _ args: [String: String]) async throws -> Data {
+        var query = "method=\(Http.escape(method))&api_key=\(Http.escape(settings.effectiveApiKey))"
+        for (key, value) in args.sorted(by: { $0.key < $1.key }) { query += "&\(Http.escape(key))=\(Http.escape(value))" }
+        let (body, _) = try await Http.session.data(from: URL(string: "\(Self.apiUrl.absoluteString)?\(query)")!)
+        return body
+    }
+
     /// Sends up to 50 scrobbles. Returns a description of each one Last.fm accepted but ignored.
     public func scrobble(_ batch: [QueuedScrobble]) async throws -> [String] {
         var args: [String: String] = [:]

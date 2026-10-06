@@ -82,6 +82,19 @@ public enum Localization {
         "Removed from your loved tracks": "Se quitó de tus canciones con \u{201C}Me encanta\u{201D}",
         "Couldn't remove the love": "No se pudo quitar el \u{201C}Me encanta\u{201D}",
 
+        "Pause for 1 Hour": "Pausar 1 hora",
+        "Paused Until %@": "En pausa hasta las %@",
+        "Your Week": "Tu semana",
+        "Weekly Summary on Sunday Evenings": "Resumen semanal los domingos por la noche",
+        "Connect to Last.fm to see your week": "Conéctate a Last.fm para ver tu semana",
+        "%@ scrobbles in the last 7 days": "%@ scrobbles en los últimos 7 días",
+        "Top artist: %@ (%@ plays)": "Artista más escuchado: %@ (%@ reproducciones)",
+        "Top song: %@ (%@ plays)": "Canción más escuchada: %@ (%@ reproducciones)",
+        "Couldn't load your week. Try again later.": "No se pudo cargar tu semana. Inténtalo más tarde.",
+        "Loading\u{2026}": "Cargando\u{2026}",
+        "Open My Week on Last.fm": "Abrir mi semana en Last.fm",
+        "Your week on Last.fm": "Tu semana en Last.fm",
+
         // Alerts
         "%@ is already running.": "%@ ya está abierto.",
         "Look for the \u{266A} note icon in the menu bar.": "Busca el icono de nota \u{266A} en la barra de menús.",

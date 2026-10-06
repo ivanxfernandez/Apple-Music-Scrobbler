@@ -35,9 +35,21 @@ final class MenuBarApp: NSObject, NSMenuDelegate {
     private let loveShortcutItem = NSMenuItem(title: L("\u{2665} Keyboard Shortcut"), action: nil, keyEquivalent: "")
     private let loveShortcutMenu = NSMenu()
     private let nowPlayingNotificationItem = NSMenuItem(title: L("Show a Notification When a Song Starts"), action: #selector(toggleNowPlayingNotification), keyEquivalent: "")
+    private let pauseHourItem = NSMenuItem(title: L("Pause for 1 Hour"), action: #selector(pauseForAnHour), keyEquivalent: "")
+    private let weekItem = NSMenuItem(title: L("Your Week"), action: nil, keyEquivalent: "")
+    private let weekMenu = NSMenu()
+    private let weeklySummaryItem = NSMenuItem(title: L("Weekly Summary on Sunday Evenings"), action: #selector(toggleWeeklySummary), keyEquivalent: "")
     private let checkUpdatesItem = NSMenuItem(title: L("Check for Updates Automatically"), action: #selector(toggleUpdateChecks), keyEquivalent: "")
 
     private var timer: Timer?
+    private var week: WeekSummary?
+    private var weekLoadedAt = Date.distantPast
+    private var weekLoading = false
+    private var weekFailed = false
+    private var lastWeeklyCheck = Date.distantPast
+    /// The album art shown next to the current song, by track.
+    private var nowArtKey: String?
+    private var nowArt: NSImage?
     private var loveHotKey: HotKey?
     /// Whether songs (artist + title as sent to Last.fm) are loved there; filled in as songs play.
     private var loved: [String: Bool] = [:]
@@ -131,6 +143,15 @@ final class MenuBarApp: NSObject, NSMenuDelegate {
     }
 
     private func tick() {
+        // "Pause for an hour" ends by itself.
+        if let until = settings.pausedUntil, until <= Date() {
+            settings.pausedUntil = nil
+            Log.write("Scrobbling resumed (the hour is up)")
+        }
+        if Date().timeIntervalSince(lastWeeklyCheck) > 60 {
+            lastWeeklyCheck = Date()
+            Task { await weeklyNotificationIfDue() }
+        }
         let snapshot = reader.snapshot()
         scrobbler.update(snapshot)
         // Remember what played here, so catch-up never sends a play this app already handled.
@@ -153,7 +174,8 @@ final class MenuBarApp: NSObject, NSMenuDelegate {
             button.toolTip = AppInfo.name
         }
 
-        nowItem.isEnabled = false
+        nowItem.target = self
+        nowItem.action = #selector(openNowPlaying)
         loveShortcutMenu.autoenablesItems = false
         loveShortcutItem.submenu = loveShortcutMenu
         mainArtistItem.toolTip = L("\u{201C}Joji & BENEE\u{201D} is scrobbled as \u{201C}Joji\u{201D}. Bands like \u{201C}Simon & Garfunkel\u{201D} are left alone (Last.fm's listener counts tell them apart).")
@@ -166,7 +188,7 @@ final class MenuBarApp: NSObject, NSMenuDelegate {
         discordItem.isHidden = !DiscordPresence.available
 
         let options = NSMenu()
-        for item in [startupItem, discordItem, nowPlayingNotificationItem, loveShortcutItem, cleanItem, mainArtistItem, catchUpItem, checkUpdatesItem] { options.addItem(item) }
+        for item in [startupItem, discordItem, nowPlayingNotificationItem, weeklySummaryItem, loveShortcutItem, cleanItem, mainArtistItem, catchUpItem, checkUpdatesItem] { options.addItem(item) }
         ignoredMenu.autoenablesItems = false
         ignoredListItem.submenu = ignoredMenu
         options.addItem(ignoredListItem)
@@ -184,12 +206,16 @@ final class MenuBarApp: NSObject, NSMenuDelegate {
         recentMenu.autoenablesItems = false
         recentItem.submenu = recentMenu
         menu.addItem(recentItem)
+        weekMenu.autoenablesItems = false
+        weekItem.submenu = weekMenu
+        menu.addItem(weekItem)
         menu.addItem(.separator())
         menu.addItem(updateItem)
         menu.addItem(musicAccessItem)
         menu.addItem(loveItem)
         menu.addItem(ignoreItem)
         menu.addItem(pauseItem)
+        menu.addItem(pauseHourItem)
         menu.addItem(withTitle: L("Open My Last.fm Profile"), action: #selector(openProfile), keyEquivalent: "")
         menu.addItem(optionsItem)
         menu.addItem(.separator())
@@ -205,6 +231,7 @@ final class MenuBarApp: NSObject, NSMenuDelegate {
     func menuNeedsUpdate(_ menu: NSMenu) {
         startupItem.state = Startup.isEnabled ? .on : .off
         buildRecentMenu()
+        buildWeekMenu()
         buildIgnoredMenu()
         updateUi()
     }
@@ -310,7 +337,7 @@ final class MenuBarApp: NSObject, NSMenuDelegate {
             if ignored { text = L("%@ (not scrobbled)", text) }
             return text
         }
-        setTitle(nowItem, Self.menuText(playing ?? L("Nothing playing")))
+        updateNowItem(playing: playing)
         setTitle(lastItem, scrobbler.lastScrobbled.isEmpty ? L("Nothing scrobbled yet") : Self.menuText(L("Last scrobbled: %@", scrobbler.lastScrobbled)))
         setTitle(recentItem, scrobbler.pending > 0 ? L("Recent Scrobbles (%@ Waiting)", scrobbler.pending) : L("Recent Scrobbles"))
         loveItem.isEnabled = np?.isValid == true && !dryRun
@@ -320,7 +347,11 @@ final class MenuBarApp: NSObject, NSMenuDelegate {
         setTitle(ignoreItem, np?.isValid == true
             ? Self.menuText(ignored ? L("Scrobble %@ Again", np?.artist ?? "") : L("Don\u{2019}t Scrobble %@", np?.artist ?? ""))
             : L("Don\u{2019}t Scrobble This Artist"))
-        pauseItem.state = settings.paused ? .on : .off
+        let pausedUntil = settings.pausedUntil.flatMap { $0 > Date() ? $0 : nil }
+        pauseItem.state = settings.isPaused() ? .on : .off
+        setTitle(pauseItem, pausedUntil.map { L("Paused Until %@", Self.shortTime($0)) } ?? L("Pause Scrobbling"))
+        pauseHourItem.isHidden = settings.isPaused()
+        weeklySummaryItem.state = settings.weeklySummary ? .on : .off
         discordItem.state = settings.showOnDiscord ? .on : .off
         setTitle(discordItem, settings.showOnDiscord && !discord.isConnected ? L("Show \u{201C}Listening to\u{201D} on Discord (Waiting for Discord)") : L("Show \u{201C}Listening to\u{201D} on Discord"))
         cleanItem.state = settings.cleanTitles ? .on : .off
@@ -330,8 +361,8 @@ final class MenuBarApp: NSObject, NSMenuDelegate {
         musicAccessItem.isHidden = reader.access == .granted || reader.access == .unknown
         setTitle(musicAccessItem, reader.access == .denied ? L("Music Access Is Off (Repeats May Be Missed)\u{2026}") : L("Allow Access to Music\u{2026}"))
 
-        statusItem.button?.appearsDisabled = settings.paused
-        var tip = (settings.paused ? L("Scrobbling paused") + "\n" : "") + (playing ?? L("Nothing playing"))
+        statusItem.button?.appearsDisabled = settings.isPaused()
+        var tip = (settings.isPaused() ? L("Scrobbling paused") + "\n" : "") + (playing ?? L("Nothing playing"))
         if scrobbler.pending > 0 { tip += "\n" + L("%@ waiting to send", scrobbler.pending) }
         if statusItem.button?.toolTip != tip { statusItem.button?.toolTip = tip }
     }
@@ -507,10 +538,156 @@ final class MenuBarApp: NSObject, NSMenuDelegate {
         }
     }
 
+    /// Pauses until turned back on; when paused (either way), resumes.
     @objc private func togglePause() {
-        settings.paused.toggle()
-        Log.write(settings.paused ? "Scrobbling paused" : "Scrobbling resumed")
+        if settings.isPaused() {
+            settings.paused = false
+            settings.pausedUntil = nil
+            Log.write("Scrobbling resumed")
+        } else {
+            settings.paused = true
+            Log.write("Scrobbling paused")
+        }
         updateUi()
+    }
+
+    @objc private func pauseForAnHour() {
+        settings.pausedUntil = Date().addingTimeInterval(3600)
+        Log.write("Scrobbling paused for an hour")
+        updateUi()
+    }
+
+    private static func shortTime(_ date: Date) -> String {
+        let formatter = DateFormatter()
+        formatter.timeStyle = .short
+        formatter.dateStyle = .none
+        return formatter.string(from: date)
+    }
+
+    // MARK: - Now playing, with album art
+
+    /// The top item: the song in bold, artist and album below, and the album art. Clicking opens the song on Last.fm.
+    private func updateNowItem(playing: String?) {
+        guard let np = scrobbler.current, np.isValid, let playing else {
+            nowItem.attributedTitle = nil
+            setTitle(nowItem, L("Nothing playing"))
+            nowItem.image = nil
+            nowItem.isEnabled = false
+            nowArtKey = nil
+            return
+        }
+        nowItem.isEnabled = true
+        let key = np.artist + "\n" + np.title + "\n" + np.album
+        let suffix = String(playing.dropFirst(np.description.count)) // " (paused)", " (not scrobbled)"
+        let details = np.album.isEmpty ? np.artist : "\(np.artist) \u{2014} \(np.album)"
+        let title = NSMutableAttributedString(string: Self.menuText(np.title + suffix),
+                                              attributes: [.font: NSFont.menuFont(ofSize: 0).bold])
+        title.append(NSAttributedString(string: "\n" + Self.menuText(details),
+                                         attributes: [.font: NSFont.menuFont(ofSize: NSFont.smallSystemFontSize), .foregroundColor: NSColor.secondaryLabelColor]))
+        if nowItem.attributedTitle != title { nowItem.attributedTitle = title }
+
+        if key != nowArtKey {
+            nowArtKey = key
+            nowArt = nil
+        }
+        if nowArt == nil {
+            let (ready, links) = artwork.tryGet(artist: np.artist, title: np.title, album: np.album)
+            if ready, let art = links?.artworkUrl, let url = URL(string: art) {
+                nowArt = Self.placeholderArt // don't start the download twice
+                Task {
+                    guard let (data, _) = try? await Http.session.data(from: url), let image = NSImage(data: data), nowArtKey == key else { return }
+                    image.size = NSSize(width: 36, height: 36)
+                    nowArt = image
+                    nowItem.image = image
+                }
+            }
+        }
+        if nowItem.image !== (nowArt ?? Self.placeholderArt) { nowItem.image = nowArt ?? Self.placeholderArt }
+    }
+
+    private static let placeholderArt: NSImage = {
+        let image = NSImage(systemSymbolName: "music.note", accessibilityDescription: nil)?
+            .withSymbolConfiguration(.init(pointSize: 20, weight: .regular)) ?? NSImage()
+        let framed = NSImage(size: NSSize(width: 36, height: 36), flipped: false) { rect in
+            image.draw(in: rect.insetBy(dx: 8, dy: 8))
+            return true
+        }
+        framed.isTemplate = true
+        return framed
+    }()
+
+    @objc private func openNowPlaying() {
+        guard let np = scrobbler.currentAsSent,
+              let url = RecentScrobble(timestamp: 0, artist: np.artist, track: np.title).url else { return }
+        NSWorkspace.shared.open(url)
+    }
+
+    // MARK: - Your week
+
+    /// Fills the "Your Week" submenu, loading the numbers from Last.fm at most every 15 minutes.
+    private func buildWeekMenu() {
+        weekMenu.removeAllItems()
+        func info(_ text: String) {
+            let item = NSMenuItem(title: Self.menuText(text), action: nil, keyEquivalent: "")
+            item.isEnabled = false
+            weekMenu.addItem(item)
+        }
+        if settings.username.isEmpty || dryRun {
+            info(L("Connect to Last.fm to see your week"))
+            return
+        }
+        if Date().timeIntervalSince(weekLoadedAt) > 15 * 60 && !weekLoading {
+            weekLoading = true
+            Task {
+                do {
+                    week = try await api.weekSummary(user: settings.username)
+                    weekFailed = false
+                    weekLoadedAt = Date()
+                } catch {
+                    weekFailed = true
+                    weekLoadedAt = Date().addingTimeInterval(-14 * 60) // try again in a minute
+                }
+                weekLoading = false
+                buildWeekMenu()
+            }
+        }
+        if let week {
+            info(L("%@ scrobbles in the last 7 days", week.scrobbles.formatted()))
+            if let artist = week.topArtist { info(L("Top artist: %@ (%@ plays)", artist, week.topArtistPlays.formatted())) }
+            if let track = week.topTrack {
+                info(L("Top song: %@ (%@ plays)", "\(week.topTrackArtist ?? "") \u{2014} \(track)", week.topTrackPlays.formatted()))
+            }
+        } else {
+            info(weekFailed ? L("Couldn't load your week. Try again later.") : L("Loading\u{2026}"))
+        }
+        weekMenu.addItem(.separator())
+        let open = NSMenuItem(title: L("Open My Week on Last.fm"), action: #selector(openWeek), keyEquivalent: "")
+        open.target = self
+        weekMenu.addItem(open)
+    }
+
+    @objc private func openWeek() {
+        if let url = WeekSummary.url(user: settings.username) { NSWorkspace.shared.open(url) }
+    }
+
+    @objc private func toggleWeeklySummary() {
+        settings.weeklySummary.toggle()
+        Log.write(settings.weeklySummary ? "Weekly summary turned on" : "Weekly summary turned off")
+        updateUi()
+    }
+
+    /// Sundays from 7 pm, once: a notification with the week's numbers.
+    private func weeklyNotificationIfDue() async {
+        let now = Date(), calendar = Calendar.current
+        guard settings.weeklySummary, !dryRun, !settings.username.isEmpty,
+              calendar.component(.weekday, from: now) == 1, calendar.component(.hour, from: now) >= 19,
+              !(settings.lastWeeklySummary.map { calendar.isDate($0, inSameDayAs: now) } ?? false) else { return }
+        settings.lastWeeklySummary = now // even if it fails, don't retry every minute
+        guard let week = try? await api.weekSummary(user: settings.username) else { return }
+        var body = L("%@ scrobbles in the last 7 days", week.scrobbles.formatted())
+        if let artist = week.topArtist { body += "\n" + L("Top artist: %@ (%@ plays)", artist, week.topArtistPlays.formatted()) }
+        if let track = week.topTrack { body += "\n" + L("Top song: %@ (%@ plays)", "\(week.topTrackArtist ?? "") \u{2014} \(track)", week.topTrackPlays.formatted()) }
+        Notifier.shared.show(L("Your week on Last.fm"), body, url: WeekSummary.url(user: settings.username))
     }
 
     @objc private func openProfile() {

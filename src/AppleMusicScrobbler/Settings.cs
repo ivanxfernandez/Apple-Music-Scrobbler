@@ -20,6 +20,16 @@ namespace AppleMusicScrobbler
         public string ApiKey { get; set; } = "";
         public string Username { get; set; } = "";
         public bool Paused { get; set; }
+        /// <summary>"Pause for an hour": scrobbling resumes by itself at this Unix time (0 = not set).</summary>
+        public long PausedUntil { get; set; }
+        /// <summary>A notification with the week's stats on Sunday evenings.</summary>
+        public bool WeeklySummary { get; set; }
+        /// <summary>The day (yyyy-MM-dd) the last weekly notification was shown, so it's shown once per Sunday.</summary>
+        public string LastWeeklySummary { get; set; } = "";
+
+        /// <summary>Paused, either until turned back on or until PausedUntil.</summary>
+        public bool IsPaused(long unixNow) => Paused || PausedUntil > unixNow;
+        public bool IsPaused() => IsPaused(DateTimeOffset.UtcNow.ToUnixTimeSeconds());
         public bool CheckForUpdates { get; set; } = true;
         /// <summary>Remove "Remaster", "Deluxe Edition", "- Single" etc. from titles (see TitleCleaner).</summary>
         public bool CleanTitles { get; set; } = true;

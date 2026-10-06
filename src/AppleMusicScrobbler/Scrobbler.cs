@@ -86,11 +86,12 @@ namespace AppleMusicScrobbler
             Current = np;
 
             var events = _tracker.Update(np, elapsed, DateTimeOffset.UtcNow.ToUnixTimeSeconds());
-            if (!_settings.Paused && np != null && IgnoreList.IsIgnored(np.Artist, _settings.IgnoredArtists))
+            bool paused = _settings.IsPaused();
+            if (!paused && np != null && IgnoreList.IsIgnored(np.Artist, _settings.IgnoredArtists))
             {
                 if (events.NowPlaying) Log.Write($"Not scrobbling {np} (artist is on the ignore list)");
             }
-            else if (!_settings.Paused && np != null)
+            else if (!paused && np != null)
             {
                 // Only what's sent changes; the tracker and Discord keep the full credit.
                 var output = np;

@@ -28,7 +28,7 @@ namespace AppleMusicScrobbler
     }
 
     /// <summary>Minimal client for the Last.fm 2.0 API (https://www.last.fm/api).</summary>
-    public class LastFmClient
+    public partial class LastFmClient
     {
         const string ApiUrl = "https://ws.audioscrobbler.com/2.0/";
 

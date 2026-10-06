@@ -235,6 +235,10 @@ final class MusicReader {
     }
 }
 
+extension NSFont {
+    var bold: NSFont { NSFontManager.shared.convert(self, toHaveTrait: .boldFontMask) }
+}
+
 extension MusicReader {
     /// Library songs whose latest play ended after `since` (Music's "played date"), including plays
     /// on other devices synced through iCloud. Needs Music access; nil if Music isn't running or it failed.
