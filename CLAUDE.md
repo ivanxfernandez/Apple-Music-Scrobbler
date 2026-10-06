@@ -5,8 +5,10 @@ Public repo: https://github.com/ivanxfernandez/Apple-Music-Scrobbler. The owner 
 
 ## Status
 
-Windows: released. macOS: built and working on Ivan's Mac, first release planned as 1.3.0.
-`docs/macos-plan.md` records the Mac decisions, what was verified about the Music app, and the open decision (code signing).
+Both platforms released together since 1.3.0 (latest: see CHANGELOG.md), in daily use on Ivan's Mac mini, MacBook and Windows PC.
+The Mac app is deliberately unsigned (no paid Apple account; the README explains Open Anyway). `docs/macos-plan.md` records the Mac
+decisions and what was verified about the Music app. An iPhone app was considered and set aside: Mac catch-up covers it while the Mac is on.
+Windows UI can't be seen from the Mac: the Screenshots workflow photographs it (light/dark, en/es) on every dev push that touches `src/`.
 
 ## Layout
 
