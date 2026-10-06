@@ -79,14 +79,16 @@ On Windows the app lives in the system tray as a red note icon (you may need to 
 
 | Menu item | What it does |
 | --- | --- |
-| *Now playing / Last scrobbled* | Status |
+| *Now playing / Last scrobbled* | Status. On the Mac the current song shows its album art; click it to open the song on Last.fm |
 | Recent scrobbles | The last 10 songs sent to Last.fm (click one to open it there), anything still waiting to be sent with a **Send now** button, and a link to your Last.fm library |
 | ♥ Love this song on Last.fm | Loves the current track. Checked when it's already loved on Last.fm; click again to remove the love. Shortcut from any app: **Win+Alt+L** (Windows), **⌃⌥L** (Mac) |
 | Don't scrobble *artist* | Adds the current artist to the ignore list: their songs aren't sent to Last.fm or shown on Discord (collaborations led by them too). Click again to undo |
-| Pause scrobbling | Stops sending anything (the icon turns grey) |
+| Pause scrobbling / Pause for 1 hour | Stops sending anything to Last.fm (the icon turns grey), until you turn it back on or for an hour. The Discord status keeps working |
+| Your week | Your last 7 days on Last.fm: scrobbles, top artist and top song, with a link to the full list |
 | Open my Last.fm profile | Opens your profile in the browser |
 | Options › Start with Windows / Start at Login | Runs automatically when you sign in |
 | Options › Show "Listening to" on Discord | Shows the current song on your Discord profile while the Discord app is running (on by default; hidden while paused) |
+| Options › Weekly summary on Sunday evenings | A notification with *Your week* every Sunday from 7 pm (off by default) |
 | Options › Show a notification when a song starts | Off by default. On the Mac it includes the album art |
 | Options › ♥ Keyboard shortcut | Picks the love shortcut: Windows Win+Alt+L (standard), Alt+Shift+L or Ctrl+Shift+Alt+L; Mac ⌃⌥L (standard), ⌃⌘L or ⌃⌥⌘L; or Off. If another app already uses it, the menu stops showing it next to ♥ and the log says so |
 | Options › Clean up titles | Removes "Remaster", "Deluxe Edition", "- Single" and similar from names (on by default) |

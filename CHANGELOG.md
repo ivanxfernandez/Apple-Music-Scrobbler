@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.7.0
+
+- **Pause for 1 hour**: next to *Pause scrobbling*; scrobbling resumes by itself, and the menu shows "Paused until 14:30" meanwhile.
+- **Your week**: a submenu with the last 7 days on Last.fm (scrobbles, top artist, top song), and an optional notification with the same on Sunday evenings (*Options*, off by default).
+- **Mac: the current song with its album art** at the top of the menu; click it to open the song on Last.fm.
+- winget manifests for the Windows app (`packaging/winget`), checked on every change by a workflow that installs the app from them.
+
 ## 1.6.1
 
 - **Mac: offers to move itself into Applications** when it's opened from somewhere else, like Downloads, and reopens from there. It can only update itself and start at login from Applications; outside it, the update window now offers the move instead of just the download page.
